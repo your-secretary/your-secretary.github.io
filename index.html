@@ -64,12 +64,31 @@
   .meter { height: 10px; background: #e6ebe7; border-radius: 99px; overflow: hidden; margin: 6px 0; }
   .meter > div { height: 100%; background: var(--main); }
   .loading { text-align: center; padding: 40px; color: var(--sub); }
+  header .hr { display: flex; gap: 8px; align-items: center; }
+  header .st { border: 0; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; background: rgba(255,255,255,.2); color: #fff; display: none; }
+  header .st.ng { background: #fff; color: var(--warn); font-weight: 700; }
+  header .gear { border: 0; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; font-weight: 700; background: #fff; color: var(--main); display: none; }
+  header .gear.on { background: #1a6b3c; color: #fff; box-shadow: inset 0 0 0 2px #fff; }
+  .setup { border: 2px solid var(--main); }
+  .setup h2 { margin: 0 0 8px; }
+  .step { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+  .step:first-of-type { border-top: 0; }
+  .step .n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: #e6ebe7; color: var(--sub); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .step.done .n { background: var(--main); color: #fff; }
+  .step.done .s { color: var(--sub); text-decoration: line-through; }
+  .step.now .n { background: var(--warn); color: #fff; }
+  .step.now .s { font-weight: 700; }
+  .step .d { font-size: 13px; color: var(--sub); }
+  h2[id] { scroll-margin-top: 64px; }
+  .sethead { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 6px; }
+  .btn.slim { width: auto; padding: 6px 14px; font-size: 14px; }
+  .warnbox { background: var(--warn-soft); border: 1px solid #f3c3bd; border-radius: 10px; padding: 8px 10px; font-size: 13px; color: var(--warn); margin-top: 6px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>LINE秘書 設定</h1>
-  <span class="st" id="hdrState"></span>
+  <h1>LINE秘書</h1>
+  <div class="hr"><button class="st" id="hdrState"></button><button class="gear" id="gearBtn">⚙ 設定</button></div>
 </header>
 <main id="app"><div class="loading">読み込み中…</div></main>
 <button class="add" id="addBtn" style="display:none" aria-label="追加">＋</button>
@@ -78,7 +97,6 @@
   <button data-tab="tasks">タスク</button>
   <button data-tab="routine">定例</button>
   <button data-tab="irregular">予定外</button>
-  <button data-tab="settings">設定</button>
 </nav>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
@@ -138,7 +156,8 @@
   function renderConnect(msg) {
     document.getElementById('tabs').style.display = 'none';
     document.getElementById('addBtn').style.display = 'none';
-    document.getElementById('hdrState').textContent = '';
+    document.getElementById('hdrState').style.display = 'none';
+    document.getElementById('gearBtn').style.display = 'none';
     app.innerHTML =
       '<div class="card"><h2 style="margin-top:0">はじめての接続</h2>' +
       '<p class="note">この画面は、この端末で1回だけ行います。入れた内容はこの端末の中だけに保存され、ほかの人には送られません。</p>' +
@@ -167,9 +186,30 @@
   function accept(j) {
     S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line;
     document.getElementById('tabs').style.display = 'flex';
-    document.getElementById('hdrState').textContent = (S.line.token && S.line.userId) ? 'LINE 接続済み' : 'LINE 未接続';
+    updateHeader();
     render();
   }
+
+  function lineOk() { return !!(S.line && S.line.token && S.line.userId); }
+  function updateHeader() {
+    var st = document.getElementById('hdrState'), g = document.getElementById('gearBtn');
+    st.style.display = 'inline-block'; g.style.display = 'inline-block';
+    st.textContent = lineOk() ? 'LINE 接続済み' : 'LINE 未接続';
+    st.classList.toggle('ng', !lineOk());
+    g.classList.toggle('on', S.tab === 'settings');
+  }
+  var FLAGS = 'lineHishoFlags';
+  function flags() { try { return JSON.parse(localStorage.getItem(FLAGS) || '{}'); } catch (e) { return {}; } }
+  function setFlag(k) { var f = flags(); f[k] = 1; try { localStorage.setItem(FLAGS, JSON.stringify(f)); } catch (e) {} }
+  function openSettings(anchor) {
+    if (S.tab !== 'settings') S.prevTab = S.tab;
+    S.tab = 'settings'; render();
+    if (anchor) { var el = document.getElementById(anchor); if (el) el.scrollIntoView({ block: 'start' }); }
+  }
+  document.getElementById('gearBtn').onclick = function () {
+    if (S.tab === 'settings') { S.tab = S.prevTab || 'today'; render(); } else openSettings();
+  };
+  document.getElementById('hdrState').onclick = function () { openSettings('secLine'); };
 
   function reload() { return api('load').then(accept); }
 
@@ -178,6 +218,7 @@
     [].forEach.call(document.querySelectorAll('nav.tabs button'), function (b) { b.classList.toggle('on', b.dataset.tab === S.tab); });
     var add = document.getElementById('addBtn');
     add.style.display = (S.tab === 'tasks' || S.tab === 'routine' || S.tab === 'irregular') ? 'block' : 'none';
+    updateHeader();
     window.scrollTo(0, 0);
     ({ today: viewToday, tasks: viewTasks, routine: viewRoutine, irregular: viewIrregular, settings: viewSettings })[S.tab]();
   }
@@ -188,14 +229,42 @@
   };
 
   // ---------- 今日 ----------
+  function setupSteps() {
+    var f = flags();
+    var hasData = ['タスク台帳', '毎月', '毎週', '毎日', 'イレギュラー'].some(function (n) { return (S.data[n] || []).length > 0; });
+    return [
+      { t: 'Apps Scriptとつなぐ', done: true },
+      { t: 'LINEとつなぐ', d: '秘書用のLINE公式アカウントから届くようにします。', done: lineOk(), go: 'line', btn: 'LINEとつなぐ' },
+      { t: '届く時間を決める', d: '朝・前の夜の、何時に届けるかを決めます。朝7時のままでよければ、開いて「保存する」を押すだけです。', done: !!f.timeSet, go: 'time', btn: '届く時間を決める' },
+      { t: '予定やタスクを入れる', d: '毎月・毎週・毎日の定例や、今かかえているタスクを入れます。', done: hasData, go: 'routine', btn: '定例を入れる' },
+      { t: 'LINEに送ってみる', d: 'ちゃんと届くかを確かめます（1通として数えられます）。', done: !!f.testSent, go: 'send', btn: 'いまLINEに送ってみる' }
+    ];
+  }
+  function setupCard() {
+    var steps = setupSteps(), left = steps.filter(function (x) { return !x.done; });
+    if (!left.length) return '';
+    var now = left[0];
+    return '<div class="card setup"><h2>はじめにやること <small style="font-weight:400;color:var(--sub)">（あと' + left.length + 'つ）</small></h2>' +
+      steps.map(function (x, i) {
+        var cls = x.done ? 'done' : (x === now ? 'now' : '');
+        return '<div class="step ' + cls + '"><div class="n">' + (x.done ? '✓' : (i + 1)) + '</div><div><div class="s">' + esc(x.t) + '</div>' +
+          (x === now ? '<div class="d">' + esc(x.d) + '</div>' : '') + '</div></div>';
+      }).join('') +
+      '<div style="margin-top:10px"><button class="btn" id="setupGo" data-go="' + now.go + '">' + esc(now.btn) + '</button></div></div>';
+  }
+  function doSend(kind, btn) {
+    busy(btn, true, '送っています…');
+    return api('testSend', { kind: kind }).then(function (j) { S.quota = j.quota; setFlag('testSent'); toast('LINEに送りました。届いているか見てください'); viewToday(); })
+      .catch(function (e) { busy(btn, false); toast(e.message, true); });
+  }
   function viewToday() {
-    var warn = (!S.line.token || !S.line.userId) ? '<div class="card" style="border-color:var(--amber)"><b>LINEがまだつながっていません。</b><p class="note">「設定」の「LINEの接続」から入れてください。それまでは、ここで中身の確認だけできます。</p></div>' : '';
-    app.innerHTML = warn +
+    var kind = 'morning';
+    app.innerHTML = setupCard() +
+      '<h2 style="margin-top:4px">届く内容の見本</h2>' +
       '<div class="sub"><button data-k="morning" class="on">朝に届く内容</button><button data-k="evening">前夜に届く内容</button></div>' +
       '<div id="pv"><div class="loading">作っています…</div></div>' +
-      '<div style="margin-top:12px"><button class="btn sec" id="sendNow">いまLINEに送ってみる</button></div>' +
-      '<p class="note">「送ってみる」は1通として数えられます（無料は月200通まで）。</p>';
-    var kind = 'morning';
+      (lineOk() ? '<div style="margin-top:12px"><button class="btn sec" id="sendNow">いまLINEに送ってみる</button></div>' +
+        '<p class="note">「送ってみる」は1通として数えられます（無料は月200通まで）。</p>' : '');
     function load() {
       document.getElementById('pv').innerHTML = '<div class="loading">作っています…</div>';
       api('preview', { kind: kind }).then(function (j) { document.getElementById('pv').innerHTML = '<pre class="msg">' + esc(j.text) + '</pre>'; })
@@ -205,10 +274,14 @@
       var b = e.target.closest('button'); if (!b) return; kind = b.dataset.k;
       [].forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); }); load();
     };
-    document.getElementById('sendNow').onclick = function () {
-      var btn = this; busy(btn, true, '送っています…');
-      api('testSend', { kind: kind }).then(function (j) { S.quota = j.quota; toast('LINEに送りました'); })
-        .catch(function (e) { toast(e.message, true); }).then(function () { busy(btn, false); });
+    var sn = document.getElementById('sendNow'); if (sn) sn.onclick = function () { doSend(kind, this); };
+    var go = document.getElementById('setupGo');
+    if (go) go.onclick = function () {
+      var g = this.dataset.go;
+      if (g === 'line') openSettings('secLine');
+      else if (g === 'time') openSettings('secTime');
+      else if (g === 'routine') { S.tab = 'routine'; render(); }
+      else if (g === 'send') doSend('morning', this);
     };
     load();
   }
@@ -364,28 +437,34 @@
   function viewSettings() {
     var s = S.settings;
     var cats = (S.data['カテゴリ'] || []).slice().sort(function (a, b) { return Number(a['並び順'] || 99) - Number(b['並び順'] || 99); });
+    var ok = lineOk();
     app.innerHTML =
-      '<h2>届くタイミング</h2><div class="card">' +
+      '<div class="sethead"><h2 style="margin:0;font-size:18px">⚙ 設定</h2><button class="btn sec slim" id="setClose">閉じる</button></div>' +
+
+      '<h2 id="secLine">LINEの接続 ' + (ok ? '<span class="chip">つながっています</span>' : '<span class="chip warn">まだです</span>') + '</h2><div class="card">' +
+      (ok ? '<p class="note">入れた値は、ご自分のスプレッドシートのプログラムの中にだけ保存されています。この画面には表示されません。変えるときだけ入れ直してください。</p>'
+          : '<p class="note">秘書用のLINE公式アカウントの「LINE Developers」の画面から、次の2つをコピーして貼ります。入れた値は、ご自分のスプレッドシートのプログラムの中にだけ保存されます。</p>') +
+      '<label class="f">チャネルアクセストークン（長期） ' + (S.line.token ? '<span class="chip">入っています</span>' : '<span class="chip warn">まだです</span>') +
+      '<br><small>LINE Developers →［Messaging API設定］タブのいちばん下で「発行」すると出る、長い文字</small></label>' +
+      '<input type="password" id="lT" autocomplete="off" placeholder="' + (S.line.token ? '変えるときだけ入れる' : 'ここに貼る') + '">' +
+      '<label class="f">あなたのユーザーID ' + (S.line.userId ? '<span class="chip">入っています</span>' : '<span class="chip warn">まだです</span>') +
+      '<br><small>LINE Developers →［チャネル基本設定］タブのいちばん下。「U」から始まる文字</small></label>' +
+      '<input type="text" id="lU" autocomplete="off" placeholder="' + (S.line.userId ? '変えるときだけ入れる' : 'ここに貼る') + '">' +
+      '<div style="margin-top:14px"><button class="btn" id="lSave">LINEの情報を保存</button></div></div>' +
+
+      '<h2 id="secTime">届くタイミング</h2><div class="card">' +
       '<label class="check"><input type="checkbox" id="sM"' + (s['朝の通知'] === '○' ? ' checked' : '') + '> 朝に、その日の予定を届ける</label>' +
-      '<label class="f">朝の時刻</label>' + timeSel('sMt', s['朝の時刻'] || '07:00', false) + '' +
+      '<label class="f">朝の時刻</label>' + timeSel('sMt', s['朝の時刻'] || '07:00', false) +
       '<label class="check" style="margin-top:14px"><input type="checkbox" id="sE"' + (s['前夜の通知'] === '○' ? ' checked' : '') + '> 前の日の夜に、次の日の予定を届ける</label>' +
-      '<label class="f">前夜の時刻</label>' + timeSel('sEt', s['前夜の時刻'] || '21:00', false) + '' +
+      '<label class="f">前夜の時刻</label>' + timeSel('sEt', s['前夜の時刻'] || '21:00', false) +
       '<p class="note">両方オンにすると1日2通になります。無料は月200通までなので、1日2通なら月60通ほどです。</p>' +
       '<label class="f">秘書の名前 <small>（メッセージの最初に出ます）</small></label><input type="text" id="sN" value="' + esc(s['秘書の名前'] || '秘書') + '">' +
       '<label class="f">期限の何日前から知らせるか</label><input type="number" min="0" max="30" id="sD" value="' + esc(s['期限を知らせる日数'] || '3') + '">' +
       '<div style="margin-top:14px"><button class="btn" id="sSave">保存する</button></div></div>' +
 
-      '<h2>カテゴリ</h2><p class="note">「仕事1」などの名前を、ご自分の仕事の名前に変えられます。</p>' +
+      '<h2>カテゴリ</h2><p class="note">「仕事1」などの名前を、ご自分の仕事の名前に変えられます。押すと変更できます。</p>' +
       cats.map(function (r) { return '<div class="card item" data-id="' + esc(r.ID) + '"><div class="t">' + esc(r['名前']) + '</div><div class="m">並び順 ' + esc(r['並び順'] || '—') + '</div></div>'; }).join('') +
       '<button class="btn sec" id="catAdd">カテゴリを追加</button>' +
-
-      '<h2>LINEの接続</h2><div class="card">' +
-      '<p class="note">状態：チャネルアクセストークン ' + (S.line.token ? '<b>入っています</b>' : '<b style="color:var(--warn)">まだです</b>') +
-      '／ユーザーID ' + (S.line.userId ? '<b>入っています</b>' : '<b style="color:var(--warn)">まだです</b>') + '</p>' +
-      '<p class="note">入れた値は、ご自分のスプレッドシートのプログラムの中にだけ保存されます。一度入れると、この画面には表示されません。変えるときだけ入れ直してください。</p>' +
-      '<label class="f">チャネルアクセストークン（長期）</label><input type="password" id="lT" autocomplete="off" placeholder="変えるときだけ入れる">' +
-      '<label class="f">あなたのユーザーID <small>（U から始まる文字）</small></label><input type="text" id="lU" autocomplete="off" placeholder="変えるときだけ入れる">' +
-      '<div style="margin-top:14px"><button class="btn" id="lSave">LINEの情報を保存</button></div></div>' +
 
       '<h2>今月の送信数</h2><div class="card" id="qBox"><button class="btn sec" id="qLoad">LINEに問い合わせる</button></div>' +
 
@@ -396,6 +475,7 @@
       '<h2>この端末</h2><div class="card"><p class="note">この端末に覚えさせたApps ScriptのURLとパスワードを消します。スプレッドシートの中身は消えません。</p>' +
       '<button class="btn danger" id="logout">この端末の接続を解除する</button></div>';
 
+    document.getElementById('setClose').onclick = function () { S.tab = S.prevTab || 'today'; render(); };
     document.getElementById('sSave').onclick = function () {
       var mt = timeVal('sMt'), et = timeVal('sEt');
       var st = {
@@ -405,8 +485,11 @@
         '期限を知らせる日数': document.getElementById('sD').value || '3'
       };
       var btn = this; busy(btn, true, '保存しています…');
-      api('saveSettings', { settings: st }).then(function (j) { S.settings = j.settings; toast('保存しました。次の通知から反映されます'); })
-        .catch(function (e) { toast(e.message, true); }).then(function () { busy(btn, false); });
+      api('saveSettings', { settings: st }).then(function (j) {
+        S.settings = j.settings; setFlag('timeSet');
+        if (setupSteps().some(function (x) { return !x.done; })) { S.tab = 'today'; render(); toast('保存しました。次の「はじめにやること」に進みましょう'); }
+        else { busy(btn, false); toast('保存しました。次の通知から反映されます'); }
+      }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
     bindItems('カテゴリ');
     document.getElementById('catAdd').onclick = function () { openEditor('カテゴリ', null); };
@@ -416,8 +499,9 @@
       if (u && !/^U[0-9a-f]{32}$/.test(u)) { toast('ユーザーIDは「U」と32文字の英数字です。コピーし直してください', true); return; }
       var btn = this; busy(btn, true, '保存しています…');
       api('saveLine', { token: t, userId: u }).then(function (j) {
-        S.line = j.line; document.getElementById('hdrState').textContent = (S.line.token && S.line.userId) ? 'LINE 接続済み' : 'LINE 未接続';
-        toast('保存しました'); viewSettings();
+        var was = ok; S.line = j.line; updateHeader();
+        if (!was && lineOk()) { S.tab = 'today'; render(); toast('LINEとつながりました。次は「届く時間」を決めましょう'); }
+        else { toast('保存しました'); viewSettings(); }
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
     function showQuota(q) {
