@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>LINE秘書 設定</title>
+<title>LINEで届く あなたの秘書</title>
 <style>
   :root {
     --bg: #f5f6f4; --card: #ffffff; --ink: #1f2a24; --sub: #66736b; --line: #e2e6e2;
@@ -14,7 +14,8 @@
     font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif;
     font-size: 16px; line-height: 1.6; -webkit-text-size-adjust: 100%; }
   header { position: sticky; top: 0; z-index: 5; background: var(--main); color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
-  header h1 { margin: 0; font-size: 18px; font-weight: 700; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  header h1 small { display: block; font-size: 11px; font-weight: 400; opacity: .9; }
   header .st { font-size: 12px; opacity: .9; }
   main { padding: 14px 14px 96px; max-width: 640px; margin: 0 auto; }
   nav.tabs { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--line); display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
@@ -87,7 +88,7 @@
 </head>
 <body>
 <header>
-  <h1>LINE秘書</h1>
+  <h1><small>LINEで届く</small>あなたの秘書</h1>
   <div class="hr"><button class="st" id="hdrState"></button><button class="gear" id="gearBtn">⚙ 設定</button></div>
 </header>
 <main id="app"><div class="loading">読み込み中…</div></main>
@@ -149,17 +150,18 @@
     if (!h) return '';
     return h + ':' + (m || '00');
   }
+  function shortUrl(u) { var m = /^(https:\/\/script\.google\.com\/macros\/s\/)(.{6}).*(.{4})(\/exec)$/.exec(u || ''); return m ? m[1] + m[2] + '…' + m[3] + m[4] : u; }
   function md(s) { var p = String(s || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : s; }
   function daysLeft(s) { var p = String(s || '').split('-').map(Number); if (p.length !== 3 || !p[0]) return null; var t = today().split('-').map(Number); return Math.round((Date.UTC(p[0], p[1] - 1, p[2]) - Date.UTC(t[0], t[1] - 1, t[2])) / 86400000); }
 
   // ---------- 最初の接続 ----------
-  function renderConnect(msg) {
+  function renderConnect(msg, changing) {
     document.getElementById('tabs').style.display = 'none';
     document.getElementById('addBtn').style.display = 'none';
     document.getElementById('hdrState').style.display = 'none';
     document.getElementById('gearBtn').style.display = 'none';
     app.innerHTML =
-      '<div class="card"><h2 style="margin-top:0">はじめての接続</h2>' +
+      '<div class="card"><h2 style="margin-top:0">' + (changing ? '接続先を変える' : 'はじめての接続') + '</h2>' +
       '<p class="note">この画面は、この端末で1回だけ行います。入れた内容はこの端末の中だけに保存され、ほかの人には送られません。</p>' +
       (msg ? '<p class="note" style="color:var(--warn)">' + esc(msg) + '</p>' : '') +
       '<label class="f">Apps ScriptのURL <small>（スプレッドシートのURLではありません。Apps Scriptの「デプロイ」→「デプロイを管理」→「ウェブアプリ」のURL。/exec で終わるもの）</small></label>' +
@@ -167,7 +169,12 @@
       '<label class="f">パスワード <small>（ご自分で決めてください。4文字以上）</small></label>' +
       '<input type="password" id="cKey" autocomplete="new-password">' +
       '<p class="note">はじめてつなぐときに入れたパスワードが、そのまま登録されます。ほかの端末でつなぐときも同じパスワードを使います。</p>' +
-      '<button class="btn" id="cGo">つなぐ</button></div>';
+      '<button class="btn" id="cGo">つなぐ</button>' +
+      (changing ? '<div style="margin-top:8px"><button class="btn sec" id="cBack">変えずに戻る</button></div>' : '') + '</div>';
+    if (changing) {
+      document.getElementById('cUrl').value = S.conn.url;
+      document.getElementById('cBack').onclick = function () { accept({ schema: S.schema, data: S.data, settings: S.settings, line: S.line, sheet: S.sheet }); };
+    }
     document.getElementById('cGo').onclick = function () {
       var url = document.getElementById('cUrl').value.trim(), key = document.getElementById('cKey').value;
       if (/docs\.google\.com\/spreadsheets/.test(url)) { toast('これはスプレッドシートのURLです。Apps Scriptの「デプロイ」→「デプロイを管理」にある、/exec で終わるURLを貼ってください', true); return; }
@@ -184,7 +191,7 @@
   }
 
   function accept(j) {
-    S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line;
+    S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null;
     document.getElementById('tabs').style.display = 'flex';
     updateHeader();
     render();
@@ -203,6 +210,7 @@
   function setFlag(k) { var f = flags(); f[k] = 1; try { localStorage.setItem(FLAGS, JSON.stringify(f)); } catch (e) {} }
   function openSettings(anchor) {
     if (S.tab !== 'settings') S.prevTab = S.tab;
+    S.setSub = anchor === 'secTime' ? 'task' : 'all';
     S.tab = 'settings'; render();
     if (anchor) { var el = document.getElementById(anchor); if (el) el.scrollIntoView({ block: 'start' }); }
   }
@@ -441,6 +449,17 @@
     app.innerHTML =
       '<div class="sethead"><h2 style="margin:0;font-size:18px">⚙ 設定</h2><button class="btn sec slim" id="setClose">閉じる</button></div>' +
 
+      '<div class="sub" id="setSub"><button data-g="all"' + (S.setSub !== 'task' ? ' class="on"' : '') + '>全体の設定</button>' +
+      '<button data-g="task"' + (S.setSub === 'task' ? ' class="on"' : '') + '>通知・タスクの設定</button></div>' +
+
+      '<div id="grpAll"' + (S.setSub === 'task' ? ' style="display:none"' : '') + '>' +
+
+      '<h2 id="secConn">接続先 <span class="chip">つながっています</span></h2><div class="card">' +
+      (S.sheet ? '<label class="f">スプレッドシート</label><div><a href="' + esc(S.sheet.url) + '" target="_blank" rel="noopener">' + esc(S.sheet.name) + '</a></div>' : '') +
+      '<label class="f">Apps ScriptのURL</label><div style="word-break:break-all;font-size:13px;color:var(--sub)">' + esc(shortUrl(S.conn.url)) + '</div>' +
+      '<p class="note">スプレッドシートやApps Scriptを作り直して、URLが変わったときに使います。</p>' +
+      '<button class="btn sec" id="connChange">接続先を変える</button></div>' +
+
       '<h2 id="secLine">LINEの接続 ' + (ok ? '<span class="chip">つながっています</span>' : '<span class="chip warn">まだです</span>') + '</h2><div class="card">' +
       (ok ? '<p class="note">入れた値は、ご自分のスプレッドシートのプログラムの中にだけ保存されています。この画面には表示されません。変えるときだけ入れ直してください。</p>'
           : '<p class="note">秘書用のLINE公式アカウントの「LINE Developers」の画面から、次の2つをコピーして貼ります。入れた値は、ご自分のスプレッドシートのプログラムの中にだけ保存されます。</p>') +
@@ -451,6 +470,16 @@
       '<br><small>LINE Developers →［チャネル基本設定］タブのいちばん下。「U」から始まる文字</small></label>' +
       '<input type="text" id="lU" autocomplete="off" placeholder="' + (S.line.userId ? '変えるときだけ入れる' : 'ここに貼る') + '">' +
       '<div style="margin-top:14px"><button class="btn" id="lSave">LINEの情報を保存</button></div></div>' +
+
+      '<h2>今月の送信数</h2><div class="card" id="qBox"><button class="btn sec" id="qLoad">LINEに問い合わせる</button></div>' +
+
+      '<h2>パスワードの変更</h2><div class="card"><label class="f">新しいパスワード <small>（4文字以上）</small></label><input type="password" id="kNew" autocomplete="new-password">' +
+      '<div style="margin-top:12px"><button class="btn sec" id="kSave">パスワードを変える</button></div>' +
+      '<p class="note">変えたあとは、ほかの端末では新しいパスワードでつなぎ直してください。</p></div>' +
+
+      '<h2>この端末</h2><div class="card"><p class="note">この端末に覚えさせたApps ScriptのURLとパスワードを消します。スプレッドシートの中身は消えません。</p>' +
+      '<button class="btn danger" id="logout">この端末の接続を解除する</button></div>' +
+      '</div><div id="grpTask"' + (S.setSub === 'task' ? '' : ' style="display:none"') + '>' +
 
       '<h2 id="secTime">届くタイミング</h2><div class="card">' +
       '<label class="check"><input type="checkbox" id="sM"' + (s['朝の通知'] === '○' ? ' checked' : '') + '> 朝に、その日の予定を届ける</label>' +
@@ -466,16 +495,12 @@
       cats.map(function (r) { return '<div class="card item" data-id="' + esc(r.ID) + '"><div class="t">' + esc(r['名前']) + '</div><div class="m">並び順 ' + esc(r['並び順'] || '—') + '</div></div>'; }).join('') +
       '<button class="btn sec" id="catAdd">カテゴリを追加</button>' +
 
-      '<h2>今月の送信数</h2><div class="card" id="qBox"><button class="btn sec" id="qLoad">LINEに問い合わせる</button></div>' +
+      '</div>';
 
-      '<h2>パスワードの変更</h2><div class="card"><label class="f">新しいパスワード <small>（4文字以上）</small></label><input type="password" id="kNew" autocomplete="new-password">' +
-      '<div style="margin-top:12px"><button class="btn sec" id="kSave">パスワードを変える</button></div>' +
-      '<p class="note">変えたあとは、ほかの端末では新しいパスワードでつなぎ直してください。</p></div>' +
-
-      '<h2>この端末</h2><div class="card"><p class="note">この端末に覚えさせたApps ScriptのURLとパスワードを消します。スプレッドシートの中身は消えません。</p>' +
-      '<button class="btn danger" id="logout">この端末の接続を解除する</button></div>';
 
     document.getElementById('setClose').onclick = function () { S.tab = S.prevTab || 'today'; render(); };
+    document.getElementById('setSub').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.setSub = b.dataset.g; viewSettings(); };
+    document.getElementById('connChange').onclick = function () { renderConnect('', true); };
     document.getElementById('sSave').onclick = function () {
       var mt = timeVal('sMt'), et = timeVal('sEt');
       var st = {
