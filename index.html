@@ -107,7 +107,7 @@
       .then(function (r) { return r.text(); })
       .then(function (txt) {
         var j; try { j = JSON.parse(txt); } catch (e) { throw new Error('接続先から正しい返事がありません。URLを確かめてください'); }
-        if (!j.ok) throw new Error(j.error || 'うまくいきませんでした');
+        if (!j.ok) throw new Error(String(j.error || 'うまくいきませんでした').replace(/合言葉/g, 'パスワード'));
         return j;
       });
   }
@@ -145,14 +145,14 @@
       (msg ? '<p class="note" style="color:var(--warn)">' + esc(msg) + '</p>' : '') +
       '<label class="f">接続先のURL <small>（スプレッドシートのプログラムを公開したときのURL）</small></label>' +
       '<input type="url" id="cUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">' +
-      '<label class="f">合言葉 <small>（ご自分で決めてください。4文字以上）</small></label>' +
+      '<label class="f">パスワード <small>（ご自分で決めてください。4文字以上）</small></label>' +
       '<input type="password" id="cKey" autocomplete="new-password">' +
-      '<p class="note">はじめてつなぐときに入れた合言葉が、そのまま登録されます。ほかの端末でつなぐときも同じ合言葉を使います。</p>' +
+      '<p class="note">はじめてつなぐときに入れたパスワードが、そのまま登録されます。ほかの端末でつなぐときも同じパスワードを使います。</p>' +
       '<button class="btn" id="cGo">つなぐ</button></div>';
     document.getElementById('cGo').onclick = function () {
       var url = document.getElementById('cUrl').value.trim(), key = document.getElementById('cKey').value;
       if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) { toast('URLは https://script.google.com/macros/s/… で始まり /exec で終わるものを貼ってください', true); return; }
-      if (key.length < 4) { toast('合言葉は4文字以上にしてください', true); return; }
+      if (key.length < 4) { toast('パスワードは4文字以上にしてください', true); return; }
       var btn = this; busy(btn, true, 'つないでいます…');
       var conn = { url: url, key: key };
       api('hello', {}, conn).then(function (j) {
@@ -388,11 +388,11 @@
 
       '<h2>今月の送信数</h2><div class="card" id="qBox"><button class="btn sec" id="qLoad">LINEに問い合わせる</button></div>' +
 
-      '<h2>合言葉の変更</h2><div class="card"><label class="f">新しい合言葉 <small>（4文字以上）</small></label><input type="password" id="kNew" autocomplete="new-password">' +
-      '<div style="margin-top:12px"><button class="btn sec" id="kSave">合言葉を変える</button></div>' +
-      '<p class="note">変えたあとは、ほかの端末では新しい合言葉でつなぎ直してください。</p></div>' +
+      '<h2>パスワードの変更</h2><div class="card"><label class="f">新しいパスワード <small>（4文字以上）</small></label><input type="password" id="kNew" autocomplete="new-password">' +
+      '<div style="margin-top:12px"><button class="btn sec" id="kSave">パスワードを変える</button></div>' +
+      '<p class="note">変えたあとは、ほかの端末では新しいパスワードでつなぎ直してください。</p></div>' +
 
-      '<h2>この端末</h2><div class="card"><p class="note">この端末に覚えさせた接続先と合言葉を消します。スプレッドシートの中身は消えません。</p>' +
+      '<h2>この端末</h2><div class="card"><p class="note">この端末に覚えさせた接続先とパスワードを消します。スプレッドシートの中身は消えません。</p>' +
       '<button class="btn danger" id="logout">この端末の接続を解除する</button></div>';
 
     document.getElementById('sSave').onclick = function () {
@@ -435,7 +435,7 @@
     document.getElementById('kSave').onclick = function () {
       var k = document.getElementById('kNew').value; if (k.length < 4) { toast('4文字以上にしてください', true); return; }
       var btn = this; busy(btn, true, '変えています…');
-      api('changeKey', { newKey: k }).then(function () { S.conn.key = k; saveConn(S.conn); document.getElementById('kNew').value = ''; toast('合言葉を変えました'); })
+      api('changeKey', { newKey: k }).then(function () { S.conn.key = k; saveConn(S.conn); document.getElementById('kNew').value = ''; toast('パスワードを変えました'); })
         .catch(function (e) { toast(e.message, true); }).then(function () { busy(btn, false); });
     };
     document.getElementById('logout').onclick = function () {
