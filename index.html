@@ -143,7 +143,7 @@
       '<div class="card"><h2 style="margin-top:0">はじめての接続</h2>' +
       '<p class="note">この画面は、この端末で1回だけ行います。入れた内容はこの端末の中だけに保存され、ほかの人には送られません。</p>' +
       (msg ? '<p class="note" style="color:var(--warn)">' + esc(msg) + '</p>' : '') +
-      '<label class="f">接続先のURL <small>（スプレッドシートのプログラムを公開したときのURL）</small></label>' +
+      '<label class="f">Apps ScriptのURL <small>（スプレッドシートのURLではありません。Apps Scriptの「デプロイ」→「デプロイを管理」→「ウェブアプリ」のURL。/exec で終わるもの）</small></label>' +
       '<input type="url" id="cUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">' +
       '<label class="f">パスワード <small>（ご自分で決めてください。4文字以上）</small></label>' +
       '<input type="password" id="cKey" autocomplete="new-password">' +
@@ -151,7 +151,8 @@
       '<button class="btn" id="cGo">つなぐ</button></div>';
     document.getElementById('cGo').onclick = function () {
       var url = document.getElementById('cUrl').value.trim(), key = document.getElementById('cKey').value;
-      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) { toast('URLは https://script.google.com/macros/s/… で始まり /exec で終わるものを貼ってください', true); return; }
+      if (/docs\.google\.com\/spreadsheets/.test(url)) { toast('これはスプレッドシートのURLです。Apps Scriptの「デプロイ」→「デプロイを管理」にある、/exec で終わるURLを貼ってください', true); return; }
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) { toast('Apps ScriptのURL（https://script.google.com/macros/s/… で始まり /exec で終わるもの）を貼ってください', true); return; }
       if (key.length < 4) { toast('パスワードは4文字以上にしてください', true); return; }
       var btn = this; busy(btn, true, 'つないでいます…');
       var conn = { url: url, key: key };
@@ -392,7 +393,7 @@
       '<div style="margin-top:12px"><button class="btn sec" id="kSave">パスワードを変える</button></div>' +
       '<p class="note">変えたあとは、ほかの端末では新しいパスワードでつなぎ直してください。</p></div>' +
 
-      '<h2>この端末</h2><div class="card"><p class="note">この端末に覚えさせた接続先とパスワードを消します。スプレッドシートの中身は消えません。</p>' +
+      '<h2>この端末</h2><div class="card"><p class="note">この端末に覚えさせたApps ScriptのURLとパスワードを消します。スプレッドシートの中身は消えません。</p>' +
       '<button class="btn danger" id="logout">この端末の接続を解除する</button></div>';
 
     document.getElementById('sSave').onclick = function () {
