@@ -123,7 +123,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.004';
+  var SITE_VERSION = '1.1.005';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -362,19 +362,18 @@
   }
   document.getElementById('tabs').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.tab; render(); };
   document.getElementById('addBtn').onclick = function () {
-    if (S.tab === 'routine') { chooseRoutine(); return; }
-    openEditor(S.tab === 'tasks' ? 'タスク台帳' : 'イレギュラー', null);
+    openEditor(S.tab === 'tasks' ? 'タスク台帳' : S.tab === 'routine' ? '定例' : 'イレギュラー', null);
   };
 
   // ---------- 今日 ----------
   function setupSteps() {
     var f = flags();
-    var hasData = ['タスク台帳', '毎月', '毎週', '毎日', 'イレギュラー'].some(function (n) { return (S.data[n] || []).length > 0; });
+    var hasData = ['タスク台帳', '定例', 'イレギュラー'].some(function (n) { return (S.data[n] || []).length > 0; });
     return [
       { t: 'Apps Scriptとつなぐ', done: true },
       { t: 'LINEとつなぐ', d: '秘書用のLINE公式アカウントから届くようにします。', done: lineOk(), go: 'line', btn: 'LINEとつなぐ' },
       { t: '毎日のリマインドの時刻を決める', d: '毎日何時に届けるかを決めます。朝7時のままでよければ、開いて「保存する」を押すだけです。', done: !!f.timeSet, go: 'time', btn: '毎日のリマインドの時刻を決める' },
-      { t: '予定やタスクを入れる', d: '毎月・毎週・毎日の定例や、今かかえているタスクを入れます。', done: hasData, go: 'routine', btn: '定例を入れる' },
+      { t: '予定やタスクを入れる', d: 'くり返しの定例（毎週月曜・隔週・毎月第3土曜など）や、今かかえているタスクを入れます。', done: hasData, go: 'routine', btn: '定例を入れる' },
       { t: 'LINE送信確認', d: 'ちゃんと届くかを確かめます。無料の月200通のうち、1通を使います。', done: !!f.testSent, go: 'send', btn: 'メッセージをLINEに送る' }
     ];
   }
@@ -544,39 +543,44 @@
     bindItems('タスク台帳'); bindPcAdd();
   }
 
-  // ---------- 定例（上から 毎日・毎週・毎月 の順に並べる） ----------
-  var ROUTINES = ['毎日', '毎週', '毎月'];
+  // ---------- 定例（くり返しの決め方はGoogleカレンダーの「カスタム」と同じ） ----------
+  var WDS = ['月', '火', '水', '木', '金', '土', '日'];
+  // カードのいちばん上に出す「毎週 月曜」「隔週 木曜」「毎月 第3土曜」などの文字
+  function ruleText(r) {
+    var k = Math.max(1, Math.floor(Number(r['間隔']) || 1)), u = r['単位'], t = '';
+    var bp = String(r['開始日'] || '').split('-');
+    if (u === '日') t = k === 1 ? '毎日' : k + '日ごと';
+    else if (u === '週') {
+      var days = WDS.filter(function (w) { return String(r['曜日'] || '').indexOf(w) >= 0; });
+      var d = days.join('') === '月火水木金' ? '平日' : days.join('') === '月火水木金土日' ? '毎日' : days.join('・') + '曜';
+      t = (k === 1 ? '毎週' : k === 2 ? '隔週' : k + '週間ごと') + ' ' + (days.length ? d : '（曜日なし）');
+      if (k === 1 && d === '毎日') t = '毎日';
+      if (k === 1 && d === '平日') t = '平日（月〜金）';
+    } else if (u === 'か月') {
+      var pre = k === 1 ? '毎月' : k + 'か月ごと';
+      if ((r['月の決め方'] || '日付で') === '日付で') t = pre + ' ' + (r['日'] === '末日' ? '末日' : (r['日'] || '?') + '日');
+      else t = pre + ' ' + (r['第何週'] === '最終週' ? '最終' : String(r['第何週'] || '').replace('週', '')) + (r['何曜日'] || '?') + '曜';
+    } else if (u === '年') t = (k === 1 ? '毎年' : k + '年ごと') + (bp.length === 3 ? ' ' + Number(bp[1]) + '月' + Number(bp[2]) + '日' : '');
+    if (r['終了日']) t += '（' + md(r['終了日']) + 'まで）';
+    return t;
+  }
   function viewRoutine() {
-    var WD = ['月', '火', '水', '木', '金', '土', '日'], WK = ['第1週', '第2週', '第3週', '第4週', '第5週', '最終週'];
-    var mKey = function (r) { return r['指定のしかた'] === '第〇週の曜日で' ? 100 + WK.indexOf(r['週']) * 10 + WD.indexOf(r['曜日']) : (r['日'] === '末日' ? 99 : Number(r['日'])); };
-    var html = '';
-    ROUTINES.forEach(function (sub) {
-      var rows = (S.data[sub] || []).slice();
-      if (sub === '毎月') rows.sort(function (a, b) { return mKey(a) - mKey(b) || (a['開始'] || '').localeCompare(b['開始'] || ''); });
-      if (sub === '毎週') rows.sort(function (a, b) { return WD.indexOf(a['曜日']) - WD.indexOf(b['曜日']) || (a['開始'] || '').localeCompare(b['開始'] || ''); });
-      if (sub === '毎日') rows.sort(function (a, b) { return (a['開始'] || '99').localeCompare(b['開始'] || '99'); });
-      html += '<h2 id="rt_' + sub + '"' + (sub === '毎日' ? ' style="margin-top:4px"' : '') + '>' + sub + '</h2>';
-      if (!rows.length) html += emptyBox('まだありません。', sub);
-      rows.forEach(function (r) {
-        var when = sub === '毎月' ? (r['指定のしかた'] === '第〇週の曜日で' ? '毎月 ' + (r['週'] || '') + 'の' + (r['曜日'] || '') + '曜' : (r['日'] === '末日' ? '毎月 末日' : '毎月 ' + r['日'] + '日')) + ' ' + span(r)
-          : sub === '毎週' ? '毎週 ' + r['曜日'] + '曜 ' + span(r)
-          : (r['曜日指定'] ? r['曜日指定'] : '毎日') + (r['開始'] ? ' ' + r['開始'] : '') + (r['終了'] ? '〜' + r['終了'] : '');
-        html += '<div class="card item" data-sheet="' + sub + '" data-id="' + esc(r.ID) + '" style="' + (r['有効'] === '○' ? '' : 'opacity:.5') + '">' +
-          '<div class="t">' + (sub === '毎日' && r['種類'] === '時間の確保' ? '<span class="chip">時間の確保</span>' : '') + esc(r['内容']) + '</div>' +
-          '<div class="m">' + esc(when.trim()) + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + (r['有効'] === '○' ? '' : ' <span class="chip gray">お休み中</span>') + '</div>' +
-          remindLine(r) + '</div>';
-      });
+    var UO = { '日': 0, '週': 1, 'か月': 2, '年': 3 };
+    var firstDay = function (r) { for (var i = 0; i < 7; i++) if (String(r['曜日'] || '').indexOf(WDS[i]) >= 0) return i; return 9; };
+    var rows = (S.data['定例'] || []).slice().sort(function (a, b) {
+      return (UO[a['単位']] - UO[b['単位']]) || (firstDay(a) - firstDay(b)) || (a['開始'] || '99').localeCompare(b['開始'] || '99');
+    });
+    var html = '<p class="note" style="margin-top:0">「毎週 月曜」「隔週 木曜」「毎月 第3土曜」など、くり返しの予定を入れます。</p>';
+    if (!rows.length) html += emptyBox('まだありません。');
+    rows.forEach(function (r) {
+      html += '<div class="card item" data-id="' + esc(r.ID) + '" style="' + (r['有効'] === '○' ? '' : 'opacity:.5') + '">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--main)">' + esc(ruleText(r)) + (r['有効'] === '○' ? '' : ' <span class="chip gray">お休み中</span>') + '</div>' +
+        '<div class="t">' + (r['種類'] === '時間の確保' ? '<span class="chip">時間の確保</span>' : '') + esc(r['内容']) + '</div>' +
+        '<div class="m">' + esc(span(r)) + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + '</div>' +
+        remindLine(r) + '</div>';
     });
     app.innerHTML = html;
-    bindItems(); bindPcAdd();
-  }
-  // 定例タブの＋：どれを追加するか選んでもらう
-  function chooseRoutine() {
-    openModal('<h3>どの定例を追加しますか？</h3><div class="actions">' +
-      ROUTINES.map(function (x) { return '<button class="btn sec" data-r="' + x + '">' + x + 'の定例</button>'; }).join('') +
-      '<button class="btn sec" id="crNo" style="border-color:var(--line);color:var(--sub)">やめる</button></div>');
-    [].forEach.call(document.querySelectorAll('#sheet [data-r]'), function (b) { b.onclick = function () { openEditor(b.dataset.r, null); }; });
-    document.getElementById('crNo').onclick = closeModal;
+    bindItems('定例'); bindPcAdd();
   }
 
   // ---------- 単発（シート名はイレギュラー） ----------
@@ -618,7 +622,7 @@
     def.fields.forEach(function (f) {
       if (f.hidden) return;
       var v = row[f.key] != null && row[f.key] !== '' ? row[f.key] : (isNew && f.default ? f.default : '');
-      if (isNew && f.key === '日付' && sheet === 'イレギュラー') v = v || today();
+      if (isNew && ((f.key === '日付' && sheet === 'イレギュラー') || (f.key === '開始日' && sheet === '定例'))) v = v || today();
       var id = 'f_' + f.key;
       html += '<div id="w_' + esc(f.key) + '">';
       html += '<label class="f">' + esc(f.key) + (f.required ? ' <small>（必須）</small>' : '') + (f.hint ? '<br><small>' + esc(f.hint) + '</small>' : '') + '</label>';
@@ -648,7 +652,11 @@
       '<button class="btn sec" id="eCancel">閉じる</button></div>';
     openModal(html);
     // showIf：ほかの項目の選び方によって、出したり隠したりする
-    function shown(f) { if (!f.showIf) return true; var el = document.getElementById('f_' + f.showIf[0]); return !!el && el.value === f.showIf[1]; }
+    function shown(f) {
+      if (!f.showIf) return true;
+      var conds = Array.isArray(f.showIf[0]) ? f.showIf : [f.showIf];
+      return conds.every(function (c) { var el = document.getElementById('f_' + c[0]); return !!el && el.value === c[1]; });
+    }
     function applyShow() { def.fields.forEach(function (f) { if (f.hidden || !f.showIf) return; document.getElementById('w_' + f.key).style.display = shown(f) ? '' : 'none'; }); }
     def.fields.forEach(function (f) { if (f.hidden || f.type !== 'select') return; document.getElementById('f_' + f.key).addEventListener('change', applyShow); });
     applyShow();
@@ -667,8 +675,12 @@
         if (f.required && !val) { toast('「' + f.key + '」を入れてください', true); return; }
         out[f.key] = val;
       }
-      if (sheet === '毎月' && out['指定のしかた'] === '日付で' && !out['日']) { toast('「日」を選んでください', true); return; }
-      if (sheet === '毎月' && out['指定のしかた'] === '第〇週の曜日で' && (!out['週'] || !out['曜日'])) { toast('「週」と「曜日」を選んでください', true); return; }
+      if (sheet === '定例') {
+        if (!(Number(out['間隔']) >= 1)) { toast('「間隔」は1以上の数にしてください', true); return; }
+        if (out['単位'] === '週' && !out['曜日']) { toast('くり返す「曜日」を1つ以上選んでください', true); return; }
+        if ((Number(out['間隔']) > 1 || out['単位'] === '年') && !out['開始日']) { toast('1回おきや毎年のときは「開始日」を入れてください（数える基準になります）', true); return; }
+        if (out['終了日'] && out['開始日'] && out['終了日'] < out['開始日']) { toast('「終了日」は「開始日」より後にしてください', true); return; }
+      }
       if (sheet === 'イレギュラー' && out['種類'] !== 'この日は定例をお休み' && !out['内容']) { toast('「内容」を入れてください', true); return; }
       if (sheet === 'イレギュラー' && out['終了日'] && out['終了日'] < out['日付']) { toast('「終了日」は「日付」より後にしてください', true); return; }
       var btn = this; busy(btn, true, '保存しています…');
