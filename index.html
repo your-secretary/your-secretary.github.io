@@ -105,7 +105,9 @@
 <script>
 (function () {
   'use strict';
-  var STORE = 'lineHishoConn';
+  var STORE = 'yourSecretaryLogin';
+  var SITE_VERSION = '1.1.001';
+  var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', routineSub: '毎月', taskFilter: '未完了', quota: null };
   var app = document.getElementById('app');
 
@@ -119,16 +121,23 @@
   function saveConn(c) { try { localStorage.setItem(STORE, JSON.stringify(c)); return true; } catch (e) { return false; } }
   function clearConn() { try { localStorage.removeItem(STORE); } catch (e) {} }
 
-  function api(action, extra, conn) {
-    conn = conn || S.conn;
-    var body = Object.assign({ action: action, key: conn.key }, extra || {});
-    return fetch(conn.url, { method: 'POST', body: JSON.stringify(body) })
+  function post_(url, body) {
+    return fetch(url, { method: 'POST', body: JSON.stringify(body) })
       .then(function (r) { return r.text(); })
       .then(function (txt) {
-        var j; try { j = JSON.parse(txt); } catch (e) { throw new Error('接続先から正しい返事がありません。URLを確かめてください'); }
-        if (!j.ok) throw new Error(String(j.error || 'うまくいきませんでした').replace(/合言葉/g, 'パスワード'));
+        var j; try { j = JSON.parse(txt); } catch (e) { throw new Error('つながり先から正しい返事がありません。URLを確かめてください'); }
+        if (!j.ok) { var er = new Error(String(j.error || 'うまくいきませんでした').replace(/合言葉/g, 'パスワード')); er.data = j; throw er; }
         return j;
       });
+  }
+  // お客さん自身のスプレッドシート（予定やタスクの中身）
+  function api(action, extra) {
+    return post_(S.conn.url, Object.assign({ action: action, key: S.conn.pw, accountId: S.conn.id }, extra || {}));
+  }
+  // 提供者の顧客管理（利用者IDとパスワードだけ）
+  function adminApi(action, extra, cred) {
+    cred = cred || S.conn;
+    return post_(ADMIN_URL, Object.assign({ action: action, id: cred.id, pw: cred.pw }, extra || {}));
   }
   function busy(btn, on, label) { if (!btn) return; btn.disabled = on; if (on) { btn._l = btn.textContent; btn.textContent = label || '処理中…'; } else if (btn._l) btn.textContent = btn._l; }
 
@@ -154,44 +163,146 @@
   function md(s) { var p = String(s || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : s; }
   function daysLeft(s) { var p = String(s || '').split('-').map(Number); if (p.length !== 3 || !p[0]) return null; var t = today().split('-').map(Number); return Math.round((Date.UTC(p[0], p[1] - 1, p[2]) - Date.UTC(t[0], t[1] - 1, t[2])) / 86400000); }
 
-  // ---------- 最初の接続 ----------
-  function renderConnect(msg, changing) {
+  // ---------- ログイン ----------
+  function bare() {
     document.getElementById('tabs').style.display = 'none';
     document.getElementById('addBtn').style.display = 'none';
     document.getElementById('hdrState').style.display = 'none';
     document.getElementById('gearBtn').style.display = 'none';
+    document.getElementById('toast').style.display = 'none';
+    closeModal();
+  }
+  function verLine() { return '<p class="note" style="text-align:center;margin-top:14px">バージョン ' + SITE_VERSION + '</p>'; }
+
+  function renderLogin(msg) {
+    bare();
     app.innerHTML =
-      '<div class="card"><h2 style="margin-top:0">' + (changing ? '接続先を変える' : 'はじめての接続') + '</h2>' +
-      '<p class="note">この画面は、この端末で1回だけ行います。入れた内容はこの端末の中だけに保存され、ほかの人には送られません。</p>' +
+      '<div class="card"><h2 style="margin-top:0">ログイン</h2>' +
       (msg ? '<p class="note" style="color:var(--warn)">' + esc(msg) + '</p>' : '') +
-      '<label class="f">Apps ScriptのURL <small>（スプレッドシートのURLではありません。Apps Scriptの「デプロイ」→「デプロイを管理」→「ウェブアプリ」のURL。/exec で終わるもの）</small></label>' +
-      '<input type="url" id="cUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">' +
-      '<label class="f">パスワード <small>（ご自分で決めてください。4文字以上）</small></label>' +
-      '<input type="password" id="cKey" autocomplete="new-password">' +
-      '<p class="note">はじめてつなぐときに入れたパスワードが、そのまま登録されます。ほかの端末でつなぐときも同じパスワードを使います。</p>' +
-      '<button class="btn" id="cGo">つなぐ</button>' +
-      (changing ? '<div style="margin-top:8px"><button class="btn sec" id="cBack">変えずに戻る</button></div>' : '') + '</div>';
-    if (changing) {
-      document.getElementById('cUrl').value = S.conn.url;
-      document.getElementById('cBack').onclick = function () { accept({ schema: S.schema, data: S.data, settings: S.settings, line: S.line, sheet: S.sheet }); };
-    }
-    document.getElementById('cGo').onclick = function () {
-      var url = document.getElementById('cUrl').value.trim(), key = document.getElementById('cKey').value;
-      if (/docs\.google\.com\/spreadsheets/.test(url)) { toast('これはスプレッドシートのURLです。Apps Scriptの「デプロイ」→「デプロイを管理」にある、/exec で終わるURLを貼ってください', true); return; }
-      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) { toast('Apps ScriptのURL（https://script.google.com/macros/s/… で始まり /exec で終わるもの）を貼ってください', true); return; }
-      if (key.length < 4) { toast('パスワードは4文字以上にしてください', true); return; }
-      var btn = this; busy(btn, true, 'つないでいます…');
-      var conn = { url: url, key: key };
-      api('hello', {}, conn).then(function (j) {
-        S.conn = conn;
-        if (!saveConn(conn)) toast('この端末に保存できませんでした。次回もう一度入れる必要があります', true);
-        accept(j); toast('つながりました');
+      '<label class="f">利用者ID</label><input type="text" id="lgId" autocomplete="username" autocapitalize="off">' +
+      '<label class="f">パスワード</label><input type="password" id="lgPw" autocomplete="current-password">' +
+      '<p class="note">利用者IDと最初のパスワードは、ご購入のときにお知らせしたものです。この端末にはログインした状態が残ります。</p>' +
+      '<button class="btn" id="lgGo">ログイン</button></div>' + verLine();
+    document.getElementById('lgGo').onclick = function () {
+      var id = document.getElementById('lgId').value.trim(), pw = document.getElementById('lgPw').value;
+      if (!id || !pw) { toast('利用者IDとパスワードを入れてください', true); return; }
+      var btn = this; busy(btn, true, 'ログインしています…');
+      doLogin({ id: id, pw: pw }).catch(function (e) { busy(btn, false); toast(e.message, true); });
+    };
+  }
+
+  function doLogin(cred) {
+    return adminApi('login', {}, cred).then(function (j) {
+      S.conn = { id: cred.id, pw: cred.pw, url: j.boundUrl || '', name: j.name || '' };
+      if (!saveConn(S.conn)) toast('この端末に保存できませんでした。次回もう一度ログインが必要です', true);
+      if (j.mustChange) return renderChangePw(true);
+      if (!S.conn.url) return renderConnect();
+      return loadMain();
+    });
+  }
+
+  function renderChangePw(first) {
+    bare();
+    app.innerHTML =
+      '<div class="card"><h2 style="margin-top:0">' + (first ? 'パスワードを決めてください' : 'パスワードの変更') + '</h2>' +
+      (first ? '<p class="note">今のパスワードは、提供者からお知らせした仮のものです。ご自分だけが知っているパスワードに変えてください。変えたあとは、提供者もあなたのパスワードを知りません。</p>' : '') +
+      '<label class="f">新しいパスワード <small>（8文字以上）</small></label><input type="password" id="cpA" autocomplete="new-password">' +
+      '<label class="f">もう一度</label><input type="password" id="cpB" autocomplete="new-password">' +
+      '<div style="margin-top:14px"><button class="btn" id="cpGo">パスワードを変える</button></div></div>' + verLine();
+    document.getElementById('cpGo').onclick = function () {
+      var a = document.getElementById('cpA').value, b = document.getElementById('cpB').value;
+      if (a.length < 8) { toast('8文字以上にしてください', true); return; }
+      if (a !== b) { toast('2つのパスワードがちがいます', true); return; }
+      var btn = this; busy(btn, true, '変えています…');
+      adminApi('changePassword', { newPw: a }).then(function () {
+        S.conn.pw = a; saveConn(S.conn); toast('パスワードを変えました');
+        if (!S.conn.url) renderConnect(); else loadMain();
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
   }
 
+  // 接続先を変える前に、2回確かめる
+  function confirmTwice(go) {
+    openModal('<h3>接続先を変えますか？</h3>' +
+      '<p>接続先を変えると、<b>今のスプレッドシートは完全に使えなくなります</b>。朝・前夜のLINEも止まります。</p>' +
+      '<p class="note">1つの利用者IDで使えるスプレッドシートは、1つだけです。</p>' +
+      '<div class="actions"><button class="btn danger" id="cf1Yes">はい</button><button class="btn sec" id="cf1No">いいえ</button></div>');
+    document.getElementById('cf1No').onclick = closeModal;
+    document.getElementById('cf1Yes').onclick = function () {
+      openModal('<h3>本当によろしいですか？</h3>' +
+        '<p>この操作のあと、<b>今のスプレッドシートには戻せません</b>（戻すには、もう一度この手続きが必要です）。</p>' +
+        '<div class="actions"><button class="btn danger" id="cf2Yes">はい、接続先を変える</button><button class="btn sec" id="cf2No">やめる</button></div>');
+      document.getElementById('cf2No').onclick = closeModal;
+      document.getElementById('cf2Yes').onclick = function () { closeModal(); go(); };
+    };
+  }
+
+  function renderConnect(changing) {
+    bare();
+    app.innerHTML =
+      '<div class="card"><h2 style="margin-top:0">' + (changing ? '新しい接続先' : 'スプレッドシートとつなぐ') + '</h2>' +
+      (changing ? '<p class="note" style="color:var(--warn)">ここでつなぐと、今までのスプレッドシートは使えなくなります。</p>'
+                : '<p class="note">あなたの予定やタスクは、ご自分のスプレッドシートにだけ保存されます。この画面で、そのスプレッドシートとつなぎます。</p>') +
+      '<label class="f">Apps ScriptのURL <small>（スプレッドシートのURLではありません。Apps Scriptの「デプロイ」→「デプロイを管理」→「ウェブアプリ」のURL。/exec で終わるもの）</small></label>' +
+      '<input type="url" id="cUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">' +
+      '<div style="margin-top:14px"><button class="btn" id="cGo">つなぐ</button></div>' +
+      (changing ? '<div style="margin-top:8px"><button class="btn sec" id="cBack">変えずに戻る</button></div>'
+                : '<div style="margin-top:8px"><button class="btn sec" id="cOut">ログアウト</button></div>') + '</div>' + verLine();
+    if (changing) document.getElementById('cBack').onclick = function () { loadMain(); };
+    else document.getElementById('cOut').onclick = logout;
+    document.getElementById('cGo').onclick = function () {
+      var url = document.getElementById('cUrl').value.trim();
+      if (/docs\.google\.com\/spreadsheets/.test(url)) { toast('これはスプレッドシートのURLです。Apps Scriptの「デプロイ」→「デプロイを管理」にある、/exec で終わるURLを貼ってください', true); return; }
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) { toast('Apps ScriptのURL（https://script.google.com/macros/s/… で始まり /exec で終わるもの）を貼ってください', true); return; }
+      if (changing && url === S.conn.url) { toast('今と同じURLです', true); return; }
+      var btn = this; busy(btn, true, 'つないでいます…');
+      post_(url, { action: 'hello', key: S.conn.pw, accountId: S.conn.id }).then(function (h) {
+        return adminApi('bind', { url: url, sheetId: h.sheetId, confirm: !!changing });
+      }).then(function () {
+        S.conn.url = url; saveConn(S.conn); toast(changing ? '接続先を変えました' : 'つながりました'); return loadMain();
+      }).catch(function (e) {
+        busy(btn, false);
+        if (e.data && e.data.needConfirm) { confirmTwice(function () { renderConnect(true); }); return; }
+        toast(e.message, true);
+      });
+    };
+  }
+
+  // 本体を読み込む
+  function loadMain() {
+    app.innerHTML = '<div class="loading">読み込み中…</div>';
+    return api('load').then(accept).catch(function (e) {
+      if (/このスプレッドシートのパスワードがちがいます/.test(e.message)) return renderProblem('pw');
+      if (e.data && e.data.licenseError) return renderProblem('lic', e.message);
+      renderProblem('other', e.message);
+    });
+  }
+
+  function renderProblem(kind, msg) {
+    bare();
+    var body = kind === 'pw'
+      ? '<p>スプレッドシートに登録されているパスワードと、今のパスワードが合いません（パスワードを初期化したときなどに起きます）。</p>' +
+        '<p class="note">スプレッドシートの「拡張機能」→「Apps Script」を開き、上の関数の選択で「<b>パスワードリセット</b>」を選んで「実行」してください。終わったら下のボタンを押します。</p>' +
+        '<button class="btn" id="pbFix">実行しました</button>'
+      : '<p>' + esc(msg || 'うまく読み込めませんでした') + '</p>' +
+        '<button class="btn" id="pbRetry">もう一度ためす</button>' +
+        (kind === 'lic' ? '<div style="margin-top:8px"><button class="btn sec" id="pbConn">接続先を変える</button></div>' : '');
+    app.innerHTML = '<div class="card"><h2 style="margin-top:0">確認が必要です</h2>' + body +
+      '<div style="margin-top:8px"><button class="btn sec" id="pbOut">ログアウト</button></div></div>' + verLine();
+    var f = document.getElementById('pbFix');
+    if (f) f.onclick = function () {
+      var btn = this; busy(btn, true, 'つないでいます…');
+      post_(S.conn.url, { action: 'hello', key: S.conn.pw, accountId: S.conn.id }).then(loadMain).catch(function (e) { busy(btn, false); toast(e.message, true); });
+    };
+    var r = document.getElementById('pbRetry'); if (r) r.onclick = function () { loadMain(); };
+    var c = document.getElementById('pbConn'); if (c) c.onclick = function () { confirmTwice(function () { renderConnect(true); }); };
+    document.getElementById('pbOut').onclick = logout;
+  }
+
+  function logout() { clearConn(); S.conn = null; S.tab = 'today'; S.quota = null; renderLogin(); }
+
   function accept(j) {
-    S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null;
+    S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null; S.version = j.version || '';
     document.getElementById('tabs').style.display = 'flex';
     updateHeader();
     render();
@@ -219,7 +330,6 @@
   };
   document.getElementById('hdrState').onclick = function () { openSettings('secLine'); };
 
-  function reload() { return api('load').then(accept); }
 
   // ---------- 画面切り替え ----------
   function render() {
@@ -454,6 +564,9 @@
 
       '<div id="grpAll"' + (S.setSub === 'task' ? ' style="display:none"' : '') + '>' +
 
+      '<h2>アカウント</h2><div class="card"><label class="f">利用者ID</label><div>' + esc(S.conn.id) + (S.conn.name ? '（' + esc(S.conn.name) + '）' : '') + '</div>' +
+      '<div style="margin-top:12px"><button class="btn sec" id="pwChange">パスワードを変える</button></div></div>' +
+
       '<h2 id="secConn">接続先 <span class="chip">つながっています</span></h2><div class="card">' +
       (S.sheet ? '<label class="f">スプレッドシート</label><div><a href="' + esc(S.sheet.url) + '" target="_blank" rel="noopener">' + esc(S.sheet.name) + '</a></div>' : '') +
       '<label class="f">Apps ScriptのURL</label><div style="word-break:break-all;font-size:13px;color:var(--sub)">' + esc(shortUrl(S.conn.url)) + '</div>' +
@@ -473,12 +586,9 @@
 
       '<h2>今月の送信数</h2><div class="card" id="qBox"><button class="btn sec" id="qLoad">LINEに問い合わせる</button></div>' +
 
-      '<h2>パスワードの変更</h2><div class="card"><label class="f">新しいパスワード <small>（4文字以上）</small></label><input type="password" id="kNew" autocomplete="new-password">' +
-      '<div style="margin-top:12px"><button class="btn sec" id="kSave">パスワードを変える</button></div>' +
-      '<p class="note">変えたあとは、ほかの端末では新しいパスワードでつなぎ直してください。</p></div>' +
-
-      '<h2>この端末</h2><div class="card"><p class="note">この端末に覚えさせたApps ScriptのURLとパスワードを消します。スプレッドシートの中身は消えません。</p>' +
-      '<button class="btn danger" id="logout">この端末の接続を解除する</button></div>' +
+      '<h2>この端末</h2><div class="card"><p class="note">この端末からログアウトします。スプレッドシートの中身は消えません。次に使うときは、利用者IDとパスワードでログインします。</p>' +
+      '<button class="btn danger" id="logout">ログアウト</button></div>' +
+      '<p class="note" style="text-align:center;margin-top:14px">バージョン：サイト ' + SITE_VERSION + '／スプレッドシートのプログラム ' + esc(S.version || '—') + '</p>' +
       '</div><div id="grpTask"' + (S.setSub === 'task' ? '' : ' style="display:none"') + '>' +
 
       '<h2 id="secTime">届くタイミング</h2><div class="card">' +
@@ -500,7 +610,8 @@
 
     document.getElementById('setClose').onclick = function () { S.tab = S.prevTab || 'today'; render(); };
     document.getElementById('setSub').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.setSub = b.dataset.g; viewSettings(); };
-    document.getElementById('connChange').onclick = function () { renderConnect('', true); };
+    document.getElementById('connChange').onclick = function () { confirmTwice(function () { renderConnect(true); }); };
+    document.getElementById('pwChange').onclick = function () { openPwModal(); };
     document.getElementById('sSave').onclick = function () {
       var mt = timeVal('sMt'), et = timeVal('sEt');
       var st = {
@@ -542,23 +653,40 @@
       api('quota').then(function (j) { S.quota = j.quota; showQuota(j.quota); }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
     if (S.quota) showQuota(S.quota);
-    document.getElementById('kSave').onclick = function () {
-      var k = document.getElementById('kNew').value; if (k.length < 4) { toast('4文字以上にしてください', true); return; }
-      var btn = this; busy(btn, true, '変えています…');
-      api('changeKey', { newKey: k }).then(function () { S.conn.key = k; saveConn(S.conn); document.getElementById('kNew').value = ''; toast('パスワードを変えました'); })
-        .catch(function (e) { toast(e.message, true); }).then(function () { busy(btn, false); });
-    };
     document.getElementById('logout').onclick = function () {
       var btn = this;
-      if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; btn.textContent = 'もう一度押すと解除します'; return; }
-      clearConn(); S.conn = null; renderConnect();
+      if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; btn.textContent = 'もう一度押すとログアウトします'; return; }
+      logout();
+    };
+  }
+
+  // パスワードを変える（スプレッドシート側と、顧客管理側の両方）
+  function openPwModal() {
+    openModal('<h3>パスワードを変える</h3>' +
+      '<label class="f">新しいパスワード <small>（8文字以上）</small></label><input type="password" id="pmA" autocomplete="new-password">' +
+      '<label class="f">もう一度</label><input type="password" id="pmB" autocomplete="new-password">' +
+      '<p class="note">変えたあとは、ほかの端末では新しいパスワードでログインし直してください。</p>' +
+      '<div class="actions"><button class="btn" id="pmGo">変える</button><button class="btn sec" id="pmNo">やめる</button></div>');
+    document.getElementById('pmNo').onclick = closeModal;
+    document.getElementById('pmGo').onclick = function () {
+      var a = document.getElementById('pmA').value, b = document.getElementById('pmB').value, old = S.conn.pw;
+      if (a.length < 8) { toast('8文字以上にしてください', true); return; }
+      if (a !== b) { toast('2つのパスワードがちがいます', true); return; }
+      var btn = this; busy(btn, true, '変えています…');
+      api('changeKey', { newKey: a }).then(function () {
+        return adminApi('changePassword', { newPw: a }).catch(function (e) {
+          // 顧客管理で失敗したら、スプレッドシート側を元に戻す
+          return post_(S.conn.url, { action: 'changeKey', key: a, accountId: S.conn.id, newKey: old }).then(function () { throw e; });
+        });
+      }).then(function () { S.conn.pw = a; saveConn(S.conn); closeModal(); toast('パスワードを変えました'); })
+        .catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
   }
 
   // ---------- 起動 ----------
   S.conn = loadConn();
-  if (!S.conn) renderConnect();
-  else reload().catch(function (e) { renderConnect('前回の接続でつながりませんでした：' + e.message); });
+  if (!S.conn || !S.conn.id) renderLogin();
+  else doLogin({ id: S.conn.id, pw: S.conn.pw }).catch(function (e) { renderLogin('自動でログインできませんでした：' + e.message); });
 })();
 </script>
 </body>
