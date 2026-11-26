@@ -125,7 +125,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.006';
+  var SITE_VERSION = '1.1.007';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -323,6 +323,7 @@
 
   function accept(j) {
     S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null; S.version = j.version || ''; S.offsets = j.offsets || [];
+    carryOldFlags();
     document.getElementById('tabs').style.display = 'flex';
     if (!S.landed) { S.landed = true; if (setupLeft()) S.tab = 'check'; }
     updateHeader();
@@ -339,8 +340,23 @@
     var c = document.querySelector('nav.tabs button.chk'); if (c && S.data) c.classList.toggle('pending', setupLeft() > 0);
   }
   var FLAGS = 'lineHishoFlags';
-  function flags() { try { return JSON.parse(localStorage.getItem(FLAGS) || '{}'); } catch (e) { return {}; } }
-  function setFlag(k) { var f = flags(); f[k] = 1; try { localStorage.setItem(FLAGS, JSON.stringify(f)); } catch (e) {} }
+  // 「はじめにやること」の進み具合は、スプレッドシートの「設定」に残す（どの端末から開いても同じ）
+  var FLAG_KEYS = { timeSet: '準備：時刻を決めた', testSent: '準備：送信確認' };
+  function flags() {
+    var st = S.settings || {}, f = {};
+    Object.keys(FLAG_KEYS).forEach(function (k) { if (st[FLAG_KEYS[k]] === '○') f[k] = 1; });
+    return f;
+  }
+  // 前の版でこの端末にだけ残していた進み具合を、スプレッドシートへ移す（1回だけ）
+  function carryOldFlags() {
+    var old; try { old = JSON.parse(localStorage.getItem(FLAGS) || 'null'); } catch (e) { old = null; }
+    if (!old) return;
+    var up = {}, now = flags();
+    Object.keys(FLAG_KEYS).forEach(function (k) { if (old[k] && !now[k]) up[FLAG_KEYS[k]] = '○'; });
+    var done = function () { try { localStorage.removeItem(FLAGS); } catch (e) {} };
+    if (!Object.keys(up).length) { done(); return; }
+    api('saveSettings', { settings: up }).then(function (j) { S.settings = j.settings; done(); updateHeader(); if (S.tab === 'check' || S.tab === 'today' || S.tab === 'tomorrow') render(); }).catch(function () {});
+  }
   function openSettings(anchor) {
     if (S.tab !== 'settings') S.prevTab = S.tab;
     S.setSub = anchor === 'secTime' ? 'task' : 'all';
@@ -418,7 +434,7 @@
       if (y) y.onclick = function () {
         busy(this, true, '送っています…');
         api('testSend').then(function (j) {
-          S.quota = j.quota; setFlag('testSent');
+          S.quota = j.quota; if (j.settings) S.settings = j.settings;
           openModal('<div class="bigmsg"><div class="ico">✅</div><h3 style="margin-top:8px">LINEに送りました</h3>' +
             '<p>スマホのLINEで、秘書から届いているか見てください。</p>' +
             '<div class="count">' + esc(quotaText(j.quota)) + '</div></div>' +
@@ -774,12 +790,13 @@
     document.getElementById('sSave').onclick = function () {
       var st = {
         'リマインドの時刻': timeVal('sMt') || '07:00',
+        '準備：時刻を決めた': '○',
         '翌日の予定を送る': document.getElementById('sNext').checked ? '○' : '',
         '秘書の名前': document.getElementById('sN').value.trim() || '秘書'
       };
       var btn = this; busy(btn, true, '保存しています…');
       api('saveSettings', { settings: st }).then(function (j) {
-        S.settings = j.settings; setFlag('timeSet');
+        S.settings = j.settings;
         if (setupLeft()) { S.tab = 'check'; render(); toast('保存しました。次の「はじめにやること」に進みましょう'); }
         else { busy(btn, false); toast('保存しました。次のリマインドから反映されます'); }
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
