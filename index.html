@@ -18,9 +18,17 @@
   header h1 small { display: block; font-size: 11px; font-weight: 400; opacity: .9; }
   header .st { font-size: 12px; opacity: .9; }
   main { padding: 14px 14px 96px; max-width: 640px; margin: 0 auto; }
-  nav.tabs { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--line); display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
-  nav.tabs button { flex: 1; border: 0; background: none; padding: 10px 2px 12px; font: inherit; font-size: 13px; color: var(--sub); }
-  nav.tabs button.on { color: var(--main); font-weight: 700; box-shadow: inset 0 3px 0 var(--main); }
+  .topbar { position: sticky; top: 0; z-index: 5; }
+  .topbar header { position: static; }
+  nav.tabs { background: #fff; border-bottom: 1px solid var(--line); display: flex; box-shadow: 0 2px 4px rgba(0,0,0,.04); }
+  nav.tabs button { flex: 1; border: 0; background: none; padding: 11px 2px 10px; font: inherit; font-size: 14px; color: var(--sub); }
+  nav.tabs button.on { color: var(--main); font-weight: 700; box-shadow: inset 0 -3px 0 var(--main); }
+  nav.tabs button.chk.pending::after { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-left: 4px; vertical-align: 2px; }
+  .bigmsg { text-align: center; }
+  .bigmsg .ico { font-size: 40px; line-height: 1; }
+  .bigmsg .count { font-size: 22px; font-weight: 700; margin: 8px 0 2px; }
+  .status { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); gap: 8px; }
+  .status:first-of-type { border-top: 0; }
   .sub { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
   .sub button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; color: var(--ink); }
   .sub button.on { background: var(--main); color: #fff; border-color: var(--main); }
@@ -49,14 +57,14 @@
   .wd { display: flex; gap: 4px; flex-wrap: wrap; }
   .wd label { border: 1px solid #cfd6d0; border-radius: 8px; padding: 6px 10px; }
   .wd input { margin-right: 4px; }
-  .add { position: fixed; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--main); color: #fff; font-size: 30px; line-height: 1; box-shadow: 0 4px 12px rgba(0,0,0,.2); z-index: 6; }
+  .add { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--main); color: #fff; font-size: 30px; line-height: 1; box-shadow: 0 4px 12px rgba(0,0,0,.2); z-index: 6; }
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: flex-end; justify-content: center; z-index: 10; }
   .modal.show { display: flex; }
   .sheet { background: #fff; width: 100%; max-width: 640px; max-height: 92vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); }
   .sheet h3 { margin: 0 0 4px; font-size: 17px; }
   .actions { display: grid; gap: 8px; margin-top: 18px; }
   pre.msg { white-space: pre-wrap; word-break: break-all; background: #effaf2; border: 1px solid #cde9d6; border-radius: 12px; padding: 12px; font: inherit; font-size: 15px; margin: 0; }
-  .toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); background: #1f2a24; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 20; display: none; max-width: 90vw; }
+  .toast { position: fixed; left: 50%; top: 128px; transform: translateX(-50%); background: #1f2a24; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 20; display: none; max-width: 90vw; }
   .toast.err { background: var(--warn); }
   .empty { text-align: center; color: var(--sub); padding: 24px 8px; }
   .filter { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; padding-bottom: 2px; }
@@ -87,18 +95,21 @@
 </style>
 </head>
 <body>
+<div class="topbar">
 <header>
   <h1><small>LINEで届く</small>あなたの秘書</h1>
   <div class="hr"><button class="st" id="hdrState"></button><button class="gear" id="gearBtn">⚙ 設定</button></div>
 </header>
-<main id="app"><div class="loading">読み込み中…</div></main>
-<button class="add" id="addBtn" style="display:none" aria-label="追加">＋</button>
 <nav class="tabs" id="tabs" style="display:none">
   <button data-tab="today">今日</button>
   <button data-tab="tasks">タスク</button>
   <button data-tab="routine">定例</button>
   <button data-tab="irregular">予定外</button>
+  <button data-tab="check" class="chk">初期確認</button>
 </nav>
+</div>
+<main id="app"><div class="loading">読み込み中…</div></main>
+<button class="add" id="addBtn" style="display:none" aria-label="追加">＋</button>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -106,7 +117,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.001';
+  var SITE_VERSION = '1.1.002';
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', routineSub: '毎月', taskFilter: '未完了', quota: null };
   var app = document.getElementById('app');
@@ -299,11 +310,12 @@
     document.getElementById('pbOut').onclick = logout;
   }
 
-  function logout() { clearConn(); S.conn = null; S.tab = 'today'; S.quota = null; renderLogin(); }
+  function logout() { clearConn(); S.conn = null; S.tab = 'today'; S.quota = null; S.landed = false; renderLogin(); }
 
   function accept(j) {
     S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null; S.version = j.version || '';
     document.getElementById('tabs').style.display = 'flex';
+    if (!S.landed) { S.landed = true; if (setupLeft()) S.tab = 'check'; }
     updateHeader();
     render();
   }
@@ -315,6 +327,7 @@
     st.textContent = lineOk() ? 'LINE 接続済み' : 'LINE 未接続';
     st.classList.toggle('ng', !lineOk());
     g.classList.toggle('on', S.tab === 'settings');
+    var c = document.querySelector('nav.tabs button.chk'); if (c && S.data) c.classList.toggle('pending', setupLeft() > 0);
   }
   var FLAGS = 'lineHishoFlags';
   function flags() { try { return JSON.parse(localStorage.getItem(FLAGS) || '{}'); } catch (e) { return {}; } }
@@ -338,7 +351,7 @@
     add.style.display = (S.tab === 'tasks' || S.tab === 'routine' || S.tab === 'irregular') ? 'block' : 'none';
     updateHeader();
     window.scrollTo(0, 0);
-    ({ today: viewToday, tasks: viewTasks, routine: viewRoutine, irregular: viewIrregular, settings: viewSettings })[S.tab]();
+    ({ today: viewToday, tasks: viewTasks, routine: viewRoutine, irregular: viewIrregular, check: viewCheck, settings: viewSettings })[S.tab]();
   }
   document.getElementById('tabs').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.tab; render(); };
   document.getElementById('addBtn').onclick = function () {
@@ -370,38 +383,108 @@
       }).join('') +
       '<div style="margin-top:10px"><button class="btn" id="setupGo" data-go="' + now.go + '">' + esc(now.btn) + '</button></div></div>';
   }
-  function doSend(kind, btn) {
-    busy(btn, true, '送っています…');
-    return api('testSend', { kind: kind }).then(function (j) { S.quota = j.quota; setFlag('testSent'); toast('LINEに送りました。届いているか見てください'); viewToday(); })
-      .catch(function (e) { busy(btn, false); toast(e.message, true); });
+  function setupLeft() { return S.data ? setupSteps().filter(function (x) { return !x.done; }).length : 0; }
+  function quotaText(q) {
+    if (!q || q.limit == null) return q ? '今月 ' + (q.used || 0) + '通 送信' : '今月の送信数を確かめられませんでした';
+    return '今月 ' + q.used + '通 ／ ' + q.limit + '通（残り ' + Math.max(0, q.limit - q.used) + '通）';
   }
-  function viewToday() {
+
+  // 送る前に確認 → 送る → 結果を画面の真ん中に出す
+  function doSend(kind) {
+    openModal('<div class="loading">今月の送信数を確かめています…</div>');
+    api('quota').then(function (j) { return j.quota; }).catch(function () { return null; }).then(function (q) {
+      S.quota = q;
+      var full = q && q.limit != null && q.used >= q.limit;
+      openModal('<h3>テスト送信をしますか？</h3>' +
+        '<p>「' + (kind === 'evening' ? '前夜' : '朝') + 'に届く内容」を、いまLINEに送ります。</p>' +
+        '<div class="warnbox" style="font-size:14px">これはテスト送信ですが、<b>LINE公式アカウントの無料の月200通のうち、1通を使います。</b>ご了承ください。</div>' +
+        '<p class="note" style="font-size:15px;color:var(--ink)">' + esc(quotaText(q)) + '</p>' +
+        (full ? '<p class="note" style="color:var(--warn)">今月の上限に達しているため、送れません。</p>' : '') +
+        '<div class="actions">' + (full ? '' : '<button class="btn" id="sdYes">はい、送ります</button>') + '<button class="btn sec" id="sdNo">やめる</button></div>');
+      document.getElementById('sdNo').onclick = closeModal;
+      var y = document.getElementById('sdYes');
+      if (y) y.onclick = function () {
+        busy(this, true, '送っています…');
+        api('testSend', { kind: kind }).then(function (j) {
+          S.quota = j.quota; setFlag('testSent');
+          openModal('<div class="bigmsg"><div class="ico">✅</div><h3 style="margin-top:8px">LINEに送りました</h3>' +
+            '<p>スマホのLINEで、秘書から届いているか見てください。</p>' +
+            '<div class="count">' + esc(quotaText(j.quota)) + '</div></div>' +
+            '<div class="actions"><button class="btn" id="sdOk">閉じる</button></div>');
+          document.getElementById('sdOk').onclick = function () { closeModal(); render(); };
+        }).catch(function (e) {
+          openModal('<h3>送れませんでした</h3><p>' + esc(e.message) + '</p><p class="note">1通も数えられていません。</p>' +
+            '<div class="actions"><button class="btn sec" id="sdOk">閉じる</button></div>');
+          document.getElementById('sdOk').onclick = closeModal;
+        });
+      };
+    });
+  }
+
+  function previewBlock(id) {
+    return '<div class="sub" id="' + id + 'K"><button data-k="morning" class="on">朝に届く内容</button><button data-k="evening">前夜に届く内容</button></div>' +
+      '<div id="' + id + '"><div class="loading">作っています…</div></div>';
+  }
+  function bindPreview(id, onKind) {
     var kind = 'morning';
-    app.innerHTML = setupCard() +
-      '<h2 style="margin-top:4px">届く内容の見本</h2>' +
-      '<div class="sub"><button data-k="morning" class="on">朝に届く内容</button><button data-k="evening">前夜に届く内容</button></div>' +
-      '<div id="pv"><div class="loading">作っています…</div></div>' +
-      (lineOk() ? '<div style="margin-top:12px"><button class="btn sec" id="sendNow">いまLINEに送ってみる</button></div>' +
-        '<p class="note">「送ってみる」は1通として数えられます（無料は月200通まで）。</p>' : '');
     function load() {
-      document.getElementById('pv').innerHTML = '<div class="loading">作っています…</div>';
-      api('preview', { kind: kind }).then(function (j) { document.getElementById('pv').innerHTML = '<pre class="msg">' + esc(j.text) + '</pre>'; })
-        .catch(function (e) { document.getElementById('pv').innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
+      document.getElementById(id).innerHTML = '<div class="loading">作っています…</div>';
+      api('preview', { kind: kind }).then(function (j) { var el = document.getElementById(id); if (el) el.innerHTML = '<pre class="msg">' + esc(j.text) + '</pre>'; })
+        .catch(function (e) { var el = document.getElementById(id); if (el) el.innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
     }
-    app.querySelector('.sub').onclick = function (e) {
+    document.getElementById(id + 'K').onclick = function (e) {
       var b = e.target.closest('button'); if (!b) return; kind = b.dataset.k;
-      [].forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); }); load();
+      [].forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
+      if (onKind) onKind(kind); load();
     };
-    var sn = document.getElementById('sendNow'); if (sn) sn.onclick = function () { doSend(kind, this); };
+    load();
+  }
+
+  // 今日：今日の内容だけ
+  function viewToday() {
+    app.innerHTML =
+      (setupLeft() ? '<div class="card" style="border-color:var(--warn)"><b>はじめにやることが、あと' + setupLeft() + 'つ残っています。</b>' +
+        '<div style="margin-top:8px"><button class="btn sec" id="toCheck">初期確認へ</button></div></div>' : '') +
+      '<h2 style="margin-top:4px">LINEに届く内容</h2>' + previewBlock('pv');
+    var tc = document.getElementById('toCheck'); if (tc) tc.onclick = function () { S.tab = 'check'; render(); };
+    bindPreview('pv');
+  }
+
+  // 初期確認：はじめにやること・つながりの一覧・送信数・送ってみる
+  function viewCheck() {
+    var s = S.settings || {}, ok = lineOk(), left = setupLeft();
+    var times = (s['朝の通知'] === '○' ? '朝 ' + (s['朝の時刻'] || '') : '朝 なし') + '／' + (s['前夜の通知'] === '○' ? '前夜 ' + (s['前夜の時刻'] || '') : '前夜 なし');
+    var row = function (label, good, text, act) {
+      return '<div class="status"><div><b>' + label + '</b><div class="note" style="margin:0">' + esc(text) + '</div></div>' +
+        (good ? '<span class="chip">OK</span>' : '<span class="chip warn">まだです</span>') + '</div>';
+    };
+    app.innerHTML =
+      (left ? setupCard() : '<div class="card" style="border-color:var(--main)"><b>✅ はじめにやることは、全部終わっています。</b></div>') +
+      '<h2>つながりの一覧</h2><div class="card">' +
+      row('スプレッドシート', true, S.sheet ? S.sheet.name : 'つながっています') +
+      row('LINE', ok, ok ? '秘書のアカウントとつながっています' : 'まだつながっていません') +
+      row('届く時間', !!flags().timeSet, flags().timeSet ? times : 'まだ決めていません（今は ' + times + '）') +
+      '</div>' +
+      '<h2>今月の送信数</h2><div class="card" id="qBox2"><div class="loading" style="padding:8px">確かめています…</div></div>' +
+      (ok ? '<h2>LINEに送ってみる</h2><p class="note">下の内容を、いまLINEに送ります。送る前に確認が出ます。</p>' + previewBlock('pv2') +
+        '<div style="margin-top:12px"><button class="btn" id="sendNow">いまLINEに送ってみる</button></div>' : '');
+    var kind = 'morning';
+    if (ok) {
+      bindPreview('pv2', function (k) { kind = k; });
+      document.getElementById('sendNow').onclick = function () { doSend(kind); };
+      api('quota').then(function (j) { S.quota = j.quota; var b = document.getElementById('qBox2'); if (b) b.innerHTML = '<div style="font-size:17px;font-weight:700">' + esc(quotaText(j.quota)) + '</div><p class="note">無料のプランは月200通までです。</p>'; })
+        .catch(function () { var b = document.getElementById('qBox2'); if (b) b.innerHTML = '<p class="note">今月の送信数を確かめられませんでした。</p>'; });
+    } else {
+      document.getElementById('qBox2').innerHTML = '<p class="note">LINEとつなぐと、ここに出ます。</p>';
+    }
     var go = document.getElementById('setupGo');
     if (go) go.onclick = function () {
       var g = this.dataset.go;
       if (g === 'line') openSettings('secLine');
       else if (g === 'time') openSettings('secTime');
       else if (g === 'routine') { S.tab = 'routine'; render(); }
-      else if (g === 'send') doSend('morning', this);
+      else if (g === 'send') doSend(kind);
     };
-    load();
   }
 
   // ---------- タスク ----------
@@ -547,7 +630,7 @@
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
   }
-  function openModal(html) { document.getElementById('sheet').innerHTML = html; document.getElementById('modal').classList.add('show'); }
+  function openModal(html) { document.getElementById('toast').style.display = 'none'; document.getElementById('sheet').innerHTML = html; document.getElementById('modal').classList.add('show'); }
   function closeModal() { document.getElementById('modal').classList.remove('show'); }
   document.getElementById('modal').onclick = function (e) { if (e.target === this) closeModal(); };
 
@@ -623,7 +706,7 @@
       var btn = this; busy(btn, true, '保存しています…');
       api('saveSettings', { settings: st }).then(function (j) {
         S.settings = j.settings; setFlag('timeSet');
-        if (setupSteps().some(function (x) { return !x.done; })) { S.tab = 'today'; render(); toast('保存しました。次の「はじめにやること」に進みましょう'); }
+        if (setupLeft()) { S.tab = 'check'; render(); toast('保存しました。次の「はじめにやること」に進みましょう'); }
         else { busy(btn, false); toast('保存しました。次の通知から反映されます'); }
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
@@ -636,7 +719,7 @@
       var btn = this; busy(btn, true, '保存しています…');
       api('saveLine', { token: t, userId: u }).then(function (j) {
         var was = ok; S.line = j.line; updateHeader();
-        if (!was && lineOk()) { S.tab = 'today'; render(); toast('LINEとつながりました。次は「届く時間」を決めましょう'); }
+        if (!was && lineOk()) { S.tab = 'check'; render(); toast('LINEとつながりました。次は「届く時間」を決めましょう'); }
         else { toast('保存しました'); viewSettings(); }
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
