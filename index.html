@@ -123,10 +123,10 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.003';
+  var SITE_VERSION = '1.1.004';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
-  var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', routineSub: '毎月', taskFilter: '未完了', quota: null };
+  var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
   var app = document.getElementById('app');
 
   // ---------- 小物 ----------
@@ -362,8 +362,8 @@
   }
   document.getElementById('tabs').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.tab; render(); };
   document.getElementById('addBtn').onclick = function () {
-    var sheet = S.tab === 'tasks' ? 'タスク台帳' : S.tab === 'routine' ? S.routineSub : 'イレギュラー';
-    openEditor(sheet, null);
+    if (S.tab === 'routine') { chooseRoutine(); return; }
+    openEditor(S.tab === 'tasks' ? 'タスク台帳' : 'イレギュラー', null);
   };
 
   // ---------- 今日 ----------
@@ -497,12 +497,16 @@
   // ---------- 一覧の共通部品 ----------
   // パソコン（マウスで操作する画面）のときだけ「＋ 追加する」ボタンを出す
   function isPC() { try { return window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 700px)').matches; } catch (e) { return false; } }
-  function emptyBox(msg) {
+  function emptyBox(msg, sheet) {
     return '<div class="empty">' + msg + '<br>' +
-      (isPC() ? '<div style="margin:12px auto 4px;max-width:240px"><button class="btn" id="pcAdd">＋ 追加する</button></div>（右下の＋からも追加できます）'
+      (isPC() ? '<div style="margin:12px auto 4px;max-width:240px"><button class="btn pcAdd"' + (sheet ? ' data-sheet="' + esc(sheet) + '"' : '') + '>＋ 追加する</button></div>（右下の＋からも追加できます）'
               : '右下の「＋」から追加できます。') + '</div>';
   }
-  function bindPcAdd() { var b = document.getElementById('pcAdd'); if (b) b.onclick = function () { document.getElementById('addBtn').onclick(); }; }
+  function bindPcAdd() {
+    [].forEach.call(app.querySelectorAll('.pcAdd'), function (b) {
+      b.onclick = function () { if (b.dataset.sheet) openEditor(b.dataset.sheet, null); else document.getElementById('addBtn').onclick(); };
+    });
+  }
   function remindLine(r) { return r['リマインド'] ? '<div class="m">リマインド：' + esc(String(r['リマインド']).split(',').join('・')) + '</div>' : ''; }
   function span(r) {
     var n = Number(r['何日間'] || 1);
@@ -540,29 +544,39 @@
     bindItems('タスク台帳'); bindPcAdd();
   }
 
-  // ---------- 定例 ----------
+  // ---------- 定例（上から 毎日・毎週・毎月 の順に並べる） ----------
+  var ROUTINES = ['毎日', '毎週', '毎月'];
   function viewRoutine() {
-    var subs = ['毎月', '毎週', '毎日'];
-    var html = '<div class="sub">' + subs.map(function (s) { return '<button data-s="' + s + '" class="' + (s === S.routineSub ? 'on' : '') + '">' + s + '</button>'; }).join('') + '</div>';
-    var rows = (S.data[S.routineSub] || []).slice();
     var WD = ['月', '火', '水', '木', '金', '土', '日'], WK = ['第1週', '第2週', '第3週', '第4週', '第5週', '最終週'];
     var mKey = function (r) { return r['指定のしかた'] === '第〇週の曜日で' ? 100 + WK.indexOf(r['週']) * 10 + WD.indexOf(r['曜日']) : (r['日'] === '末日' ? 99 : Number(r['日'])); };
-    if (S.routineSub === '毎月') rows.sort(function (a, b) { return mKey(a) - mKey(b) || (a['開始'] || '').localeCompare(b['開始'] || ''); });
-    if (S.routineSub === '毎週') rows.sort(function (a, b) { return WD.indexOf(a['曜日']) - WD.indexOf(b['曜日']) || (a['開始'] || '').localeCompare(b['開始'] || ''); });
-    if (S.routineSub === '毎日') rows.sort(function (a, b) { return (a['開始'] || '99').localeCompare(b['開始'] || '99'); });
-    if (!rows.length) html += emptyBox('まだありません。');
-    rows.forEach(function (r) {
-      var when = S.routineSub === '毎月' ? (r['指定のしかた'] === '第〇週の曜日で' ? '毎月 ' + (r['週'] || '') + 'の' + (r['曜日'] || '') + '曜' : (r['日'] === '末日' ? '毎月 末日' : '毎月 ' + r['日'] + '日')) + ' ' + span(r)
-        : S.routineSub === '毎週' ? '毎週 ' + r['曜日'] + '曜 ' + span(r)
-        : (r['曜日指定'] ? r['曜日指定'] : '毎日') + (r['開始'] ? ' ' + r['開始'] : '') + (r['終了'] ? '〜' + r['終了'] : '');
-      html += '<div class="card item" data-id="' + esc(r.ID) + '" style="' + (r['有効'] === '○' ? '' : 'opacity:.5') + '">' +
-        '<div class="t">' + (S.routineSub === '毎日' && r['種類'] === '時間の確保' ? '<span class="chip">時間の確保</span>' : '') + esc(r['内容']) + '</div>' +
-        '<div class="m">' + esc(when.trim()) + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + (r['有効'] === '○' ? '' : ' <span class="chip gray">お休み中</span>') + '</div>' +
-        remindLine(r) + '</div>';
+    var html = '';
+    ROUTINES.forEach(function (sub) {
+      var rows = (S.data[sub] || []).slice();
+      if (sub === '毎月') rows.sort(function (a, b) { return mKey(a) - mKey(b) || (a['開始'] || '').localeCompare(b['開始'] || ''); });
+      if (sub === '毎週') rows.sort(function (a, b) { return WD.indexOf(a['曜日']) - WD.indexOf(b['曜日']) || (a['開始'] || '').localeCompare(b['開始'] || ''); });
+      if (sub === '毎日') rows.sort(function (a, b) { return (a['開始'] || '99').localeCompare(b['開始'] || '99'); });
+      html += '<h2 id="rt_' + sub + '"' + (sub === '毎日' ? ' style="margin-top:4px"' : '') + '>' + sub + '</h2>';
+      if (!rows.length) html += emptyBox('まだありません。', sub);
+      rows.forEach(function (r) {
+        var when = sub === '毎月' ? (r['指定のしかた'] === '第〇週の曜日で' ? '毎月 ' + (r['週'] || '') + 'の' + (r['曜日'] || '') + '曜' : (r['日'] === '末日' ? '毎月 末日' : '毎月 ' + r['日'] + '日')) + ' ' + span(r)
+          : sub === '毎週' ? '毎週 ' + r['曜日'] + '曜 ' + span(r)
+          : (r['曜日指定'] ? r['曜日指定'] : '毎日') + (r['開始'] ? ' ' + r['開始'] : '') + (r['終了'] ? '〜' + r['終了'] : '');
+        html += '<div class="card item" data-sheet="' + sub + '" data-id="' + esc(r.ID) + '" style="' + (r['有効'] === '○' ? '' : 'opacity:.5') + '">' +
+          '<div class="t">' + (sub === '毎日' && r['種類'] === '時間の確保' ? '<span class="chip">時間の確保</span>' : '') + esc(r['内容']) + '</div>' +
+          '<div class="m">' + esc(when.trim()) + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + (r['有効'] === '○' ? '' : ' <span class="chip gray">お休み中</span>') + '</div>' +
+          remindLine(r) + '</div>';
+      });
     });
     app.innerHTML = html;
-    app.querySelector('.sub').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.routineSub = b.dataset.s; viewRoutine(); };
-    bindItems(S.routineSub); bindPcAdd();
+    bindItems(); bindPcAdd();
+  }
+  // 定例タブの＋：どれを追加するか選んでもらう
+  function chooseRoutine() {
+    openModal('<h3>どの定例を追加しますか？</h3><div class="actions">' +
+      ROUTINES.map(function (x) { return '<button class="btn sec" data-r="' + x + '">' + x + 'の定例</button>'; }).join('') +
+      '<button class="btn sec" id="crNo" style="border-color:var(--line);color:var(--sub)">やめる</button></div>');
+    [].forEach.call(document.querySelectorAll('#sheet [data-r]'), function (b) { b.onclick = function () { openEditor(b.dataset.r, null); }; });
+    document.getElementById('crNo').onclick = closeModal;
   }
 
   // ---------- 単発（シート名はイレギュラー） ----------
@@ -590,8 +604,9 @@
   function bindItems(sheet) {
     [].forEach.call(app.querySelectorAll('.item'), function (el) {
       el.onclick = function () {
-        var row = (S.data[sheet] || []).filter(function (r) { return r.ID === el.dataset.id; })[0];
-        openEditor(sheet, row);
+        var sh = sheet || el.dataset.sheet;
+        var row = (S.data[sh] || []).filter(function (r) { return r.ID === el.dataset.id; })[0];
+        openEditor(sh, row);
       };
     });
   }
