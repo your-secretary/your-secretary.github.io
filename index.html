@@ -91,6 +91,12 @@
   h2[id] { scroll-margin-top: 64px; }
   .sethead { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 6px; }
   .btn.slim { width: auto; padding: 6px 14px; font-size: 14px; }
+  .offs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .offs label { border: 1px solid #cfd6d0; border-radius: 8px; padding: 6px 8px; font-size: 14px; display: flex; align-items: center; gap: 4px; }
+  .offs input { width: 18px; height: 18px; margin: 0; }
+  .calrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .calrow:first-child { border-top: 0; }
+  .calrow input { width: 22px; height: 22px; flex: none; }
   .warnbox { background: var(--warn-soft); border: 1px solid #f3c3bd; border-radius: 10px; padding: 8px 10px; font-size: 13px; color: var(--warn); margin-top: 6px; }
 </style>
 </head>
@@ -104,7 +110,7 @@
   <button data-tab="today">今日</button>
   <button data-tab="tasks">タスク</button>
   <button data-tab="routine">定例</button>
-  <button data-tab="irregular">予定外</button>
+  <button data-tab="irregular">単発</button>
   <button data-tab="check" class="chk">初期確認</button>
 </nav>
 </div>
@@ -117,7 +123,8 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.002';
+  var SITE_VERSION = '1.1.003';
+  var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', routineSub: '毎月', taskFilter: '未完了', quota: null };
   var app = document.getElementById('app');
@@ -235,7 +242,7 @@
   // 接続先を変える前に、2回確かめる
   function confirmTwice(go) {
     openModal('<h3>接続先を変えますか？</h3>' +
-      '<p>接続先を変えると、<b>今のスプレッドシートは完全に使えなくなります</b>。朝・前夜のLINEも止まります。</p>' +
+      '<p>接続先を変えると、<b>今のスプレッドシートは完全に使えなくなります</b>。毎日のリマインドも止まります。</p>' +
       '<p class="note">1つの利用者IDで使えるスプレッドシートは、1つだけです。</p>' +
       '<div class="actions"><button class="btn danger" id="cf1Yes">はい</button><button class="btn sec" id="cf1No">いいえ</button></div>');
     document.getElementById('cf1No').onclick = closeModal;
@@ -313,7 +320,7 @@
   function logout() { clearConn(); S.conn = null; S.tab = 'today'; S.quota = null; S.landed = false; renderLogin(); }
 
   function accept(j) {
-    S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null; S.version = j.version || '';
+    S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null; S.version = j.version || ''; S.offsets = j.offsets || [];
     document.getElementById('tabs').style.display = 'flex';
     if (!S.landed) { S.landed = true; if (setupLeft()) S.tab = 'check'; }
     updateHeader();
@@ -366,9 +373,9 @@
     return [
       { t: 'Apps Scriptとつなぐ', done: true },
       { t: 'LINEとつなぐ', d: '秘書用のLINE公式アカウントから届くようにします。', done: lineOk(), go: 'line', btn: 'LINEとつなぐ' },
-      { t: '届く時間を決める', d: '朝・前の夜の、何時に届けるかを決めます。朝7時のままでよければ、開いて「保存する」を押すだけです。', done: !!f.timeSet, go: 'time', btn: '届く時間を決める' },
+      { t: '毎日のリマインドの時刻を決める', d: '毎日何時に届けるかを決めます。朝7時のままでよければ、開いて「保存する」を押すだけです。', done: !!f.timeSet, go: 'time', btn: '毎日のリマインドの時刻を決める' },
       { t: '予定やタスクを入れる', d: '毎月・毎週・毎日の定例や、今かかえているタスクを入れます。', done: hasData, go: 'routine', btn: '定例を入れる' },
-      { t: 'LINEに送ってみる', d: 'ちゃんと届くかを確かめます（1通として数えられます）。', done: !!f.testSent, go: 'send', btn: 'いまLINEに送ってみる' }
+      { t: 'LINE送信確認', d: 'ちゃんと届くかを確かめます。無料の月200通のうち、1通を使います。', done: !!f.testSent, go: 'send', btn: 'メッセージをLINEに送る' }
     ];
   }
   function setupCard() {
@@ -388,24 +395,28 @@
     if (!q || q.limit == null) return q ? '今月 ' + (q.used || 0) + '通 送信' : '今月の送信数を確かめられませんでした';
     return '今月 ' + q.used + '通 ／ ' + q.limit + '通（残り ' + Math.max(0, q.limit - q.used) + '通）';
   }
+  function stopText(q) {
+    return '今月すでに' + TEST_STOP + '通に達しています（' + q.used + '通／' + (q.limit || 200) + '通）。毎日のリマインドのために残しておくため、テスト送信は止めています。';
+  }
 
   // 送る前に確認 → 送る → 結果を画面の真ん中に出す
-  function doSend(kind) {
+  function doSend() {
     openModal('<div class="loading">今月の送信数を確かめています…</div>');
     api('quota').then(function (j) { return j.quota; }).catch(function () { return null; }).then(function (q) {
       S.quota = q;
-      var full = q && q.limit != null && q.used >= q.limit;
-      openModal('<h3>テスト送信をしますか？</h3>' +
-        '<p>「' + (kind === 'evening' ? '前夜' : '朝') + 'に届く内容」を、いまLINEに送ります。</p>' +
-        '<div class="warnbox" style="font-size:14px">これはテスト送信ですが、<b>LINE公式アカウントの無料の月200通のうち、1通を使います。</b>ご了承ください。</div>' +
+      var stop = q && q.used >= TEST_STOP;
+      openModal((stop ? '<h3>いまはテスト送信できません</h3>' :
+        '<h3>テスト送信をしますか？</h3>' +
+        '<p>「LINEに届く内容」を、いまLINEに送ります。</p>' +
+        '<div class="warnbox" style="font-size:14px">これはテスト送信ですが、<b>LINE公式アカウントの無料の月200通のうち、1通を使います。</b>ご了承ください。</div>') +
         '<p class="note" style="font-size:15px;color:var(--ink)">' + esc(quotaText(q)) + '</p>' +
-        (full ? '<p class="note" style="color:var(--warn)">今月の上限に達しているため、送れません。</p>' : '') +
-        '<div class="actions">' + (full ? '' : '<button class="btn" id="sdYes">はい、送ります</button>') + '<button class="btn sec" id="sdNo">やめる</button></div>');
+        (stop ? '<p class="note" style="color:var(--warn)">' + esc(stopText(q)) + '</p>' : '') +
+        '<div class="actions">' + (stop ? '' : '<button class="btn" id="sdYes">はい、送ります</button>') + '<button class="btn sec" id="sdNo">' + (stop ? '閉じる' : 'やめる') + '</button></div>');
       document.getElementById('sdNo').onclick = closeModal;
       var y = document.getElementById('sdYes');
       if (y) y.onclick = function () {
         busy(this, true, '送っています…');
-        api('testSend', { kind: kind }).then(function (j) {
+        api('testSend').then(function (j) {
           S.quota = j.quota; setFlag('testSent');
           openModal('<div class="bigmsg"><div class="ico">✅</div><h3 style="margin-top:8px">LINEに送りました</h3>' +
             '<p>スマホのLINEで、秘書から届いているか見てください。</p>' +
@@ -421,23 +432,15 @@
     });
   }
 
+  // LINEに届く内容（いまの設定で作ったもの）
   function previewBlock(id) {
-    return '<div class="sub" id="' + id + 'K"><button data-k="morning" class="on">朝に届く内容</button><button data-k="evening">前夜に届く内容</button></div>' +
+    var next = (S.settings || {})['翌日の予定を送る'] === '○';
+    return '<p class="note">' + (next ? '「翌日の予定を送る」がオンなので、明日の予定で作っています。' : '今日の予定で作っています。') + '</p>' +
       '<div id="' + id + '"><div class="loading">作っています…</div></div>';
   }
-  function bindPreview(id, onKind) {
-    var kind = 'morning';
-    function load() {
-      document.getElementById(id).innerHTML = '<div class="loading">作っています…</div>';
-      api('preview', { kind: kind }).then(function (j) { var el = document.getElementById(id); if (el) el.innerHTML = '<pre class="msg">' + esc(j.text) + '</pre>'; })
-        .catch(function (e) { var el = document.getElementById(id); if (el) el.innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
-    }
-    document.getElementById(id + 'K').onclick = function (e) {
-      var b = e.target.closest('button'); if (!b) return; kind = b.dataset.k;
-      [].forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
-      if (onKind) onKind(kind); load();
-    };
-    load();
+  function bindPreview(id) {
+    api('preview').then(function (j) { var el = document.getElementById(id); if (el) el.innerHTML = '<pre class="msg">' + esc(j.text) + '</pre>'; })
+      .catch(function (e) { var el = document.getElementById(id); if (el) el.innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
   }
 
   // 今日：今日の内容だけ
@@ -450,41 +453,61 @@
     bindPreview('pv');
   }
 
-  // 初期確認：はじめにやること・つながりの一覧・送信数・送ってみる
+  // 初期確認：はじめにやること・つながりの一覧・送信数・LINE送信確認
   function viewCheck() {
     var s = S.settings || {}, ok = lineOk(), left = setupLeft();
-    var times = (s['朝の通知'] === '○' ? '朝 ' + (s['朝の時刻'] || '') : '朝 なし') + '／' + (s['前夜の通知'] === '○' ? '前夜 ' + (s['前夜の時刻'] || '') : '前夜 なし');
-    var row = function (label, good, text, act) {
+    var times = '毎日 ' + (s['リマインドの時刻'] || '07:00') + (s['翌日の予定を送る'] === '○' ? '（翌日の予定）' : '（その日の予定）');
+    var row = function (label, good, text) {
       return '<div class="status"><div><b>' + label + '</b><div class="note" style="margin:0">' + esc(text) + '</div></div>' +
         (good ? '<span class="chip">OK</span>' : '<span class="chip warn">まだです</span>') + '</div>';
     };
     app.innerHTML =
-      (left ? setupCard() : '<div class="card" style="border-color:var(--main)"><b>✅ はじめにやることは、全部終わっています。</b></div>') +
+      (left ? setupCard() : '<div class="card" style="border-color:var(--main)"><b>✅ はじめにやることは、全部終わっています。</b>' +
+        '<div style="margin-top:10px"><button class="btn" id="toAll">全体の設定画面へ</button></div></div>') +
       '<h2>つながりの一覧</h2><div class="card">' +
       row('スプレッドシート', true, S.sheet ? S.sheet.name : 'つながっています') +
       row('LINE', ok, ok ? '秘書のアカウントとつながっています' : 'まだつながっていません') +
-      row('届く時間', !!flags().timeSet, flags().timeSet ? times : 'まだ決めていません（今は ' + times + '）') +
+      row('毎日のリマインド', !!flags().timeSet, flags().timeSet ? times : 'まだ決めていません（今は ' + times + '）') +
       '</div>' +
       '<h2>今月の送信数</h2><div class="card" id="qBox2"><div class="loading" style="padding:8px">確かめています…</div></div>' +
-      (ok ? '<h2>LINEに送ってみる</h2><p class="note">下の内容を、いまLINEに送ります。送る前に確認が出ます。</p>' + previewBlock('pv2') +
-        '<div style="margin-top:12px"><button class="btn" id="sendNow">いまLINEに送ってみる</button></div>' : '');
-    var kind = 'morning';
+      (ok ? '<h2>LINE送信確認</h2><p class="note">下の内容を、いまLINEに送ります。<b>無料の月200通のうち、1通を使います。</b>送る前に確認が出ます。</p>' + previewBlock('pv2') +
+        '<div style="margin-top:12px"><button class="btn" id="sendNow">メッセージをLINEに送る</button></div>' : '');
     if (ok) {
-      bindPreview('pv2', function (k) { kind = k; });
-      document.getElementById('sendNow').onclick = function () { doSend(kind); };
-      api('quota').then(function (j) { S.quota = j.quota; var b = document.getElementById('qBox2'); if (b) b.innerHTML = '<div style="font-size:17px;font-weight:700">' + esc(quotaText(j.quota)) + '</div><p class="note">無料のプランは月200通までです。</p>'; })
-        .catch(function () { var b = document.getElementById('qBox2'); if (b) b.innerHTML = '<p class="note">今月の送信数を確かめられませんでした。</p>'; });
+      bindPreview('pv2');
+      document.getElementById('sendNow').onclick = function () { doSend(); };
+      api('quota').then(function (j) {
+        S.quota = j.quota; var b = document.getElementById('qBox2');
+        if (b) b.innerHTML = '<div style="font-size:17px;font-weight:700">' + esc(quotaText(j.quota)) + '</div><p class="note">無料のプランは月200通までです。</p>' +
+          (j.quota && j.quota.used >= TEST_STOP ? '<div class="warnbox">' + esc(stopText(j.quota)) + '</div>' : '');
+      }).catch(function () { var b = document.getElementById('qBox2'); if (b) b.innerHTML = '<p class="note">今月の送信数を確かめられませんでした。</p>'; });
     } else {
       document.getElementById('qBox2').innerHTML = '<p class="note">LINEとつなぐと、ここに出ます。</p>';
     }
+    var ta = document.getElementById('toAll'); if (ta) ta.onclick = function () { openSettings(); };
     var go = document.getElementById('setupGo');
     if (go) go.onclick = function () {
       var g = this.dataset.go;
       if (g === 'line') openSettings('secLine');
       else if (g === 'time') openSettings('secTime');
       else if (g === 'routine') { S.tab = 'routine'; render(); }
-      else if (g === 'send') doSend(kind);
+      else if (g === 'send') doSend();
     };
+  }
+
+  // ---------- 一覧の共通部品 ----------
+  // パソコン（マウスで操作する画面）のときだけ「＋ 追加する」ボタンを出す
+  function isPC() { try { return window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 700px)').matches; } catch (e) { return false; } }
+  function emptyBox(msg) {
+    return '<div class="empty">' + msg + '<br>' +
+      (isPC() ? '<div style="margin:12px auto 4px;max-width:240px"><button class="btn" id="pcAdd">＋ 追加する</button></div>（右下の＋からも追加できます）'
+              : '右下の「＋」から追加できます。') + '</div>';
+  }
+  function bindPcAdd() { var b = document.getElementById('pcAdd'); if (b) b.onclick = function () { document.getElementById('addBtn').onclick(); }; }
+  function remindLine(r) { return r['リマインド'] ? '<div class="m">リマインド：' + esc(String(r['リマインド']).split(',').join('・')) + '</div>' : ''; }
+  function span(r) {
+    var n = Number(r['何日間'] || 1);
+    if (n > 1) return n + '日間（1日目 ' + (r['開始'] || '') + ' 〜 ' + n + '日目 ' + (r['終了'] || '') + '）';
+    return (r['開始'] || '') + (r['終了'] ? '〜' + r['終了'] : '');
   }
 
   // ---------- タスク ----------
@@ -502,7 +525,7 @@
       return (a['期限'] || '9999').localeCompare(b['期限'] || '9999');
     });
     var html = '<div class="filter">' + filters.map(function (f) { return '<button data-f="' + f + '" class="' + (f === S.taskFilter ? 'on' : '') + '">' + f + '</button>'; }).join('') + '</div>';
-    if (!rows.length) html += '<div class="empty">ここに入るタスクはありません。<br>右下の「＋」から追加できます。</div>';
+    if (!rows.length) html += emptyBox('ここに入るタスクはありません。');
     rows.forEach(function (r) {
       var n = daysLeft(r['期限']);
       var due = r['期限'] ? (n < 0 ? '<span class="chip warn">期限切れ ' + md(r['期限']) + '</span>' : n <= 3 ? '<span class="chip amber">期限 ' + md(r['期限']) + '</span>' : '<span class="chip gray">期限 ' + md(r['期限']) + '</span>') : '';
@@ -510,11 +533,11 @@
         '<div class="t">' + (r['緊急'] === '○' ? '<span class="chip warn">緊急</span>' : '') + esc(r['タスク']) + '</div>' +
         '<div class="m"><span class="chip ' + (STATE_CHIP[r['状態']] || '') + '">' + esc(r['状態'] || '未着手') + '</span>' + due +
         (r['カテゴリ'] ? '<span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + (r['仕事名'] ? esc(r['仕事名']) : '') + '</div>' +
-        (r['次にやること'] ? '<div class="m">次：' + esc(r['次にやること']) + '</div>' : '') + '</div>';
+        (r['次にやること'] ? '<div class="m">次：' + esc(r['次にやること']) + '</div>' : '') + remindLine(r) + '</div>';
     });
     app.innerHTML = html;
     app.querySelector('.filter').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.taskFilter = b.dataset.f; viewTasks(); };
-    bindItems('タスク台帳');
+    bindItems('タスク台帳'); bindPcAdd();
   }
 
   // ---------- 定例 ----------
@@ -522,40 +545,46 @@
     var subs = ['毎月', '毎週', '毎日'];
     var html = '<div class="sub">' + subs.map(function (s) { return '<button data-s="' + s + '" class="' + (s === S.routineSub ? 'on' : '') + '">' + s + '</button>'; }).join('') + '</div>';
     var rows = (S.data[S.routineSub] || []).slice();
-    var WD = ['月', '火', '水', '木', '金', '土', '日'];
-    if (S.routineSub === '毎月') rows.sort(function (a, b) { return (a['日'] === '末日' ? 99 : Number(a['日'])) - (b['日'] === '末日' ? 99 : Number(b['日'])) || (a['時刻'] || '').localeCompare(b['時刻'] || ''); });
-    if (S.routineSub === '毎週') rows.sort(function (a, b) { return WD.indexOf(a['曜日']) - WD.indexOf(b['曜日']) || (a['時刻'] || '').localeCompare(b['時刻'] || ''); });
+    var WD = ['月', '火', '水', '木', '金', '土', '日'], WK = ['第1週', '第2週', '第3週', '第4週', '第5週', '最終週'];
+    var mKey = function (r) { return r['指定のしかた'] === '第〇週の曜日で' ? 100 + WK.indexOf(r['週']) * 10 + WD.indexOf(r['曜日']) : (r['日'] === '末日' ? 99 : Number(r['日'])); };
+    if (S.routineSub === '毎月') rows.sort(function (a, b) { return mKey(a) - mKey(b) || (a['開始'] || '').localeCompare(b['開始'] || ''); });
+    if (S.routineSub === '毎週') rows.sort(function (a, b) { return WD.indexOf(a['曜日']) - WD.indexOf(b['曜日']) || (a['開始'] || '').localeCompare(b['開始'] || ''); });
     if (S.routineSub === '毎日') rows.sort(function (a, b) { return (a['開始'] || '99').localeCompare(b['開始'] || '99'); });
-    if (!rows.length) html += '<div class="empty">まだありません。<br>右下の「＋」から追加できます。</div>';
+    if (!rows.length) html += emptyBox('まだありません。');
     rows.forEach(function (r) {
-      var when = S.routineSub === '毎月' ? (r['日'] === '末日' ? '毎月 末日' : '毎月 ' + r['日'] + '日') + (r['時刻'] ? ' ' + r['時刻'] : '')
-        : S.routineSub === '毎週' ? '毎週 ' + r['曜日'] + '曜' + (r['時刻'] ? ' ' + r['時刻'] : '')
+      var when = S.routineSub === '毎月' ? (r['指定のしかた'] === '第〇週の曜日で' ? '毎月 ' + (r['週'] || '') + 'の' + (r['曜日'] || '') + '曜' : (r['日'] === '末日' ? '毎月 末日' : '毎月 ' + r['日'] + '日')) + ' ' + span(r)
+        : S.routineSub === '毎週' ? '毎週 ' + r['曜日'] + '曜 ' + span(r)
         : (r['曜日指定'] ? r['曜日指定'] : '毎日') + (r['開始'] ? ' ' + r['開始'] : '') + (r['終了'] ? '〜' + r['終了'] : '');
       html += '<div class="card item" data-id="' + esc(r.ID) + '" style="' + (r['有効'] === '○' ? '' : 'opacity:.5') + '">' +
         '<div class="t">' + (S.routineSub === '毎日' && r['種類'] === '時間の確保' ? '<span class="chip">時間の確保</span>' : '') + esc(r['内容']) + '</div>' +
-        '<div class="m">' + esc(when) + (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + (r['有効'] === '○' ? '' : ' <span class="chip gray">お休み中</span>') + '</div></div>';
+        '<div class="m">' + esc(when.trim()) + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + (r['有効'] === '○' ? '' : ' <span class="chip gray">お休み中</span>') + '</div>' +
+        remindLine(r) + '</div>';
     });
     app.innerHTML = html;
     app.querySelector('.sub').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.routineSub = b.dataset.s; viewRoutine(); };
-    bindItems(S.routineSub);
+    bindItems(S.routineSub); bindPcAdd();
   }
 
-  // ---------- 予定外（イレギュラー） ----------
+  // ---------- 単発（シート名はイレギュラー） ----------
   function viewIrregular() {
     var t = today();
-    var rows = (S.data['イレギュラー'] || []).slice().sort(function (a, b) { return (a['日付'] || '').localeCompare(b['日付'] || ''); });
-    var future = rows.filter(function (r) { return (r['日付'] || '') >= t; }), past = rows.filter(function (r) { return (r['日付'] || '') < t; });
-    var html = '<p class="note">いつもの定例に、その日だけの変更を入れます。「追加」「1つだけ止める」「その日は全部お休み」が選べます。</p>';
+    var rows = (S.data['イレギュラー'] || []).slice().sort(function (a, b) { return (a['日付'] || '').localeCompare(b['日付'] || '') || (a['開始'] || '').localeCompare(b['開始'] || ''); });
+    var endOf = function (r) { return r['終了日'] || r['日付'] || ''; };
+    var future = rows.filter(function (r) { return endOf(r) >= t; }), past = rows.filter(function (r) { return endOf(r) < t; });
+    var html = '<p class="note">急に入った予定や会議を入れます。いつもの定例を、その日だけ止めたり、お休みにしたりもできます。</p>';
     function card(r) {
-      var chip = r['種類'] === 'この日はお休み' ? 'warn' : r['種類'] === 'この日だけ止める' ? 'amber' : '';
+      var chip = r['種類'] === 'この日は定例をお休み' ? 'warn' : r['種類'] === 'この日だけ定例を止める' ? 'amber' : '';
+      var d = md(r['日付']) + (r['終了日'] && r['終了日'] !== r['日付'] ? '〜' + md(r['終了日']) : '');
+      var tm = (r['開始'] || '') + (r['終了'] ? '〜' + r['終了'] : '');
       return '<div class="card item" data-id="' + esc(r.ID) + '"><div class="t">' + esc(r['内容'] || '（内容なし）') + '</div>' +
-        '<div class="m">' + esc(md(r['日付'])) + (r['時刻'] ? ' ' + esc(r['時刻']) : '') + ' <span class="chip ' + chip + '">' + esc(r['種類']) + '</span></div></div>';
+        '<div class="m">' + esc(d) + (tm ? ' ' + esc(tm) : '') + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + ' <span class="chip ' + chip + '">' + esc(r['種類']) + '</span>' +
+        (r['カテゴリ'] ? '<span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + '</div>' + remindLine(r) + '</div>';
     }
-    if (!future.length) html += '<div class="empty">これからの予定外はありません。</div>';
+    if (!future.length) html += emptyBox('これからの単発の予定はありません。');
     future.forEach(function (r) { html += card(r); });
     if (past.length) { html += '<h2>過ぎたもの</h2>'; past.reverse().slice(0, 20).forEach(function (r) { html += card(r); }); }
     app.innerHTML = html;
-    bindItems('イレギュラー');
+    bindItems('イレギュラー'); bindPcAdd();
   }
 
   function bindItems(sheet) {
@@ -574,44 +603,59 @@
     def.fields.forEach(function (f) {
       if (f.hidden) return;
       var v = row[f.key] != null && row[f.key] !== '' ? row[f.key] : (isNew && f.default ? f.default : '');
-      if (isNew && f.type === 'date' && sheet === 'イレギュラー') v = v || today();
+      if (isNew && f.key === '日付' && sheet === 'イレギュラー') v = v || today();
       var id = 'f_' + f.key;
+      html += '<div id="w_' + esc(f.key) + '">';
       html += '<label class="f">' + esc(f.key) + (f.required ? ' <small>（必須）</small>' : '') + (f.hint ? '<br><small>' + esc(f.hint) + '</small>' : '') + '</label>';
       if (f.type === 'select' || f.type === 'category') {
-        var opts = f.type === 'category' ? [''].concat(categories()) : f.options;
-        if (f.type === 'category' && v && opts.indexOf(v) < 0) opts = opts.concat([v]);
+        var opts = f.type === 'category' ? [''].concat(categories()) : f.options.slice();
+        if (v && opts.indexOf(v) < 0) opts = opts.concat([v]);
         html += '<select id="' + id + '">' + opts.map(function (o) { return '<option value="' + esc(o) + '"' + (o === v ? ' selected' : '') + '>' + esc(o === '' ? '（なし）' : o) + '</option>'; }).join('') + '</select>';
       } else if (f.type === 'check') {
         html += '<label class="check"><input type="checkbox" id="' + id + '"' + (v === '○' ? ' checked' : '') + '> ' + (f.key === '有効' ? '使う（外すと一時お休み）' : 'はい') + '</label>';
       } else if (f.type === 'weekdays') {
         html += '<div class="wd" id="' + id + '">' + ['月', '火', '水', '木', '金', '土', '日'].map(function (w) { return '<label><input type="checkbox" value="' + w + '"' + (String(v).indexOf(w) >= 0 ? ' checked' : '') + '>' + w + '</label>'; }).join('') + '</div>';
+      } else if (f.type === 'offsets') {
+        var on = String(v).split(',').map(function (x) { return x.trim(); });
+        html += '<div class="offs" id="' + id + '">' + (S.offsets || []).map(function (o) { return '<label><input type="checkbox" value="' + esc(o) + '"' + (on.indexOf(o) >= 0 ? ' checked' : '') + '>' + esc(o) + '</label>'; }).join('') + '</div>';
       } else if (f.type === 'time') {
         html += timeSel(id, v, true);
       } else if (f.type === 'textarea') {
         html += '<textarea id="' + id + '">' + esc(v) + '</textarea>';
       } else {
-        var tp = f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : f.type === 'number' ? 'number' : 'text';
-        html += '<input type="' + tp + '" id="' + id + '" value="' + esc(v) + '">';
+        var tp = f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text';
+        html += '<input type="' + tp + '" id="' + id + '" value="' + esc(v) + '"' + (tp === 'number' ? ' min="1"' : '') + '>';
       }
+      html += '</div>';
     });
     html += '<div class="actions"><button class="btn" id="eSave">保存する</button>' +
       (isNew ? '' : '<button class="btn danger" id="eDel">削除する</button>') +
       '<button class="btn sec" id="eCancel">閉じる</button></div>';
     openModal(html);
+    // showIf：ほかの項目の選び方によって、出したり隠したりする
+    function shown(f) { if (!f.showIf) return true; var el = document.getElementById('f_' + f.showIf[0]); return !!el && el.value === f.showIf[1]; }
+    function applyShow() { def.fields.forEach(function (f) { if (f.hidden || !f.showIf) return; document.getElementById('w_' + f.key).style.display = shown(f) ? '' : 'none'; }); }
+    def.fields.forEach(function (f) { if (f.hidden || f.type !== 'select') return; document.getElementById('f_' + f.key).addEventListener('change', applyShow); });
+    applyShow();
     document.getElementById('eCancel').onclick = closeModal;
     document.getElementById('eSave').onclick = function () {
       var out = { ID: row.ID || '' };
       for (var i = 0; i < def.fields.length; i++) {
         var f = def.fields[i]; if (f.hidden) { if (row[f.key] != null) out[f.key] = row[f.key]; continue; }
+        if (!shown(f)) { out[f.key] = ''; continue; }
         var el = document.getElementById('f_' + f.key), val;
         if (f.type === 'check') val = el.checked ? '○' : '';
         else if (f.type === 'time') val = timeVal('f_' + f.key);
         else if (f.type === 'weekdays') val = [].map.call(el.querySelectorAll('input:checked'), function (x) { return x.value; }).join('');
+        else if (f.type === 'offsets') val = [].map.call(el.querySelectorAll('input:checked'), function (x) { return x.value; }).join(',');
         else val = el.value.trim();
         if (f.required && !val) { toast('「' + f.key + '」を入れてください', true); return; }
         out[f.key] = val;
       }
-      if (sheet === 'イレギュラー' && out['種類'] !== 'この日はお休み' && !out['内容']) { toast('「内容」を入れてください', true); return; }
+      if (sheet === '毎月' && out['指定のしかた'] === '日付で' && !out['日']) { toast('「日」を選んでください', true); return; }
+      if (sheet === '毎月' && out['指定のしかた'] === '第〇週の曜日で' && (!out['週'] || !out['曜日'])) { toast('「週」と「曜日」を選んでください', true); return; }
+      if (sheet === 'イレギュラー' && out['種類'] !== 'この日は定例をお休み' && !out['内容']) { toast('「内容」を入れてください', true); return; }
+      if (sheet === 'イレギュラー' && out['終了日'] && out['終了日'] < out['日付']) { toast('「終了日」は「日付」より後にしてください', true); return; }
       var btn = this; busy(btn, true, '保存しています…');
       api('save', { sheet: sheet, row: out }).then(function (j) {
         var list = S.data[sheet] = S.data[sheet] || [];
@@ -667,6 +711,9 @@
       '<input type="text" id="lU" autocomplete="off" placeholder="' + (S.line.userId ? '変えるときだけ入れる' : 'ここに貼る') + '">' +
       '<div style="margin-top:14px"><button class="btn" id="lSave">LINEの情報を保存</button></div></div>' +
 
+      '<h2 id="secCal">Googleカレンダーの連携</h2><div class="card"><p class="note">選んだカレンダーの予定も、毎日のリマインドに入ります（TimeRexなどで入った予定も、Googleカレンダーに入っていれば届きます）。</p>' +
+      '<div id="calBox"><div class="loading" style="padding:8px">カレンダーの一覧を読み込んでいます…</div></div></div>' +
+
       '<h2>今月の送信数</h2><div class="card" id="qBox"><button class="btn sec" id="qLoad">LINEに問い合わせる</button></div>' +
 
       '<h2>この端末</h2><div class="card"><p class="note">この端末からログアウトします。スプレッドシートの中身は消えません。次に使うときは、利用者IDとパスワードでログインします。</p>' +
@@ -674,14 +721,11 @@
       '<p class="note" style="text-align:center;margin-top:14px">バージョン：サイト ' + SITE_VERSION + '／スプレッドシートのプログラム ' + esc(S.version || '—') + '</p>' +
       '</div><div id="grpTask"' + (S.setSub === 'task' ? '' : ' style="display:none"') + '>' +
 
-      '<h2 id="secTime">届くタイミング</h2><div class="card">' +
-      '<label class="check"><input type="checkbox" id="sM"' + (s['朝の通知'] === '○' ? ' checked' : '') + '> 朝に、その日の予定を届ける</label>' +
-      '<label class="f">朝の時刻</label>' + timeSel('sMt', s['朝の時刻'] || '07:00', false) +
-      '<label class="check" style="margin-top:14px"><input type="checkbox" id="sE"' + (s['前夜の通知'] === '○' ? ' checked' : '') + '> 前の日の夜に、次の日の予定を届ける</label>' +
-      '<label class="f">前夜の時刻</label>' + timeSel('sEt', s['前夜の時刻'] || '21:00', false) +
-      '<p class="note">両方オンにすると1日2通になります。無料は月200通までなので、1日2通なら月60通ほどです。</p>' +
+      '<h2 id="secTime">毎日のリマインド</h2><div class="card">' +
+      '<label class="f">届く時刻</label>' + timeSel('sMt', s['リマインドの時刻'] || '07:00', false) +
+      '<label class="check" style="margin-top:14px"><input type="checkbox" id="sNext"' + (s['翌日の予定を送る'] === '○' ? ' checked' : '') + '> 翌日の予定を送る</label>' +
+      '<p class="note">チェックすると、その日ではなく次の日の予定を送ります（夜に届くようにするときに使います）。毎日1通なので、月に多くて31通です。</p>' +
       '<label class="f">秘書の名前 <small>（メッセージの最初に出ます）</small></label><input type="text" id="sN" value="' + esc(s['秘書の名前'] || '秘書') + '">' +
-      '<label class="f">期限の何日前から知らせるか</label><input type="number" min="0" max="30" id="sD" value="' + esc(s['期限を知らせる日数'] || '3') + '">' +
       '<div style="margin-top:14px"><button class="btn" id="sSave">保存する</button></div></div>' +
 
       '<h2>カテゴリ</h2><p class="note">「仕事1」などの名前を、ご自分の仕事の名前に変えられます。押すと変更できます。</p>' +
@@ -696,18 +740,16 @@
     document.getElementById('connChange').onclick = function () { confirmTwice(function () { renderConnect(true); }); };
     document.getElementById('pwChange').onclick = function () { openPwModal(); };
     document.getElementById('sSave').onclick = function () {
-      var mt = timeVal('sMt'), et = timeVal('sEt');
       var st = {
-        '朝の通知': document.getElementById('sM').checked ? '○' : '', '朝の時刻': mt || '07:00',
-        '前夜の通知': document.getElementById('sE').checked ? '○' : '', '前夜の時刻': et || '21:00',
-        '秘書の名前': document.getElementById('sN').value.trim() || '秘書',
-        '期限を知らせる日数': document.getElementById('sD').value || '3'
+        'リマインドの時刻': timeVal('sMt') || '07:00',
+        '翌日の予定を送る': document.getElementById('sNext').checked ? '○' : '',
+        '秘書の名前': document.getElementById('sN').value.trim() || '秘書'
       };
       var btn = this; busy(btn, true, '保存しています…');
       api('saveSettings', { settings: st }).then(function (j) {
         S.settings = j.settings; setFlag('timeSet');
         if (setupLeft()) { S.tab = 'check'; render(); toast('保存しました。次の「はじめにやること」に進みましょう'); }
-        else { busy(btn, false); toast('保存しました。次の通知から反映されます'); }
+        else { busy(btn, false); toast('保存しました。次のリマインドから反映されます'); }
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
     bindItems('カテゴリ');
@@ -719,7 +761,7 @@
       var btn = this; busy(btn, true, '保存しています…');
       api('saveLine', { token: t, userId: u }).then(function (j) {
         var was = ok; S.line = j.line; updateHeader();
-        if (!was && lineOk()) { S.tab = 'check'; render(); toast('LINEとつながりました。次は「届く時間」を決めましょう'); }
+        if (!was && lineOk()) { S.tab = 'check'; render(); toast('LINEとつながりました。次は「毎日のリマインドの時刻」を決めましょう'); }
         else { toast('保存しました'); viewSettings(); }
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
@@ -736,11 +778,37 @@
       api('quota').then(function (j) { S.quota = j.quota; showQuota(j.quota); }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
     if (S.quota) showQuota(S.quota);
+    loadCalendars();
     document.getElementById('logout').onclick = function () {
       var btn = this;
       if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; btn.textContent = 'もう一度押すとログアウトします'; return; }
       logout();
     };
+  }
+
+  // Googleカレンダーの一覧（チェックしたものを毎日のリマインドに入れる）
+  function loadCalendars() {
+    var box = document.getElementById('calBox'); if (!box) return;
+    api('calendars').then(function (j) {
+      var box = document.getElementById('calBox'); if (!box) return;
+      var cals = j.calendars || [];
+      if (!cals.length) { box.innerHTML = '<p class="note">読めるカレンダーがありませんでした。</p>'; return; }
+      box.innerHTML = cals.map(function (c, i) {
+        return '<label class="calrow"><input type="checkbox" data-id="' + esc(c.id) + '"' + (c.selected ? ' checked' : '') + '><span>' + esc(c.name) + '</span></label>';
+      }).join('') + '<div style="margin-top:12px"><button class="btn" id="calSave">選んだカレンダーを保存</button></div>';
+      document.getElementById('calSave').onclick = function () {
+        var ids = [].map.call(box.querySelectorAll('input:checked'), function (x) { return x.dataset.id; });
+        var btn = this; busy(btn, true, '保存しています…');
+        api('saveSettings', { settings: { 'カレンダー': JSON.stringify(ids) } }).then(function (k) {
+          S.settings = k.settings; busy(btn, false);
+          toast(ids.length ? 'カレンダーを' + ids.length + 'つ選んで保存しました' : 'カレンダーの連携をなしにしました');
+        }).catch(function (e) { busy(btn, false); toast(e.message, true); });
+      };
+    }).catch(function (e) {
+      var box = document.getElementById('calBox'); if (!box) return;
+      box.innerHTML = '<div class="warnbox">' + esc(e.message) + '</div><div style="margin-top:10px"><button class="btn sec" id="calRetry">もう一度読み込む</button></div>';
+      document.getElementById('calRetry').onclick = function () { box.innerHTML = '<div class="loading" style="padding:8px">読み込んでいます…</div>'; loadCalendars(); };
+    });
   }
 
   // パスワードを変える（スプレッドシート側と、顧客管理側の両方）
