@@ -113,23 +113,24 @@
   .btn:active, nav.tabs button:active, .item:active, .filter button:active, .sub button:active, .hbtn:active, header .gear:active, header .st:active, .add:active {
     transform: scale(.94); transition-duration: .08s; }
   header h1 { cursor: pointer; }
-  /* ── 開いたときの画面：帯 → 細い線 → ひとしずく → ロゴ → 文字が打たれる ── */
+  /* ── 開いたときの画面：帯 → 細い線 → 雨だれ → 着地してつぶれる → 正方形のロゴに広がる → 白い文字 ── */
   @font-face { font-family: 'SplashFont'; src: url('icons/splash.woff2') format('woff2'); font-weight: 700; font-display: block; }
-  #splash { position: fixed; inset: 0; z-index: 50; background: #fff; overflow: hidden; transition: opacity .45s ease; }
-  #splash .band { position: absolute; left: 0; right: 0; top: 0; height: calc(56px + env(safe-area-inset-top)); background: var(--main);
-    transform: scaleX(0); transform-origin: left; transition: transform .6s cubic-bezier(.65, 0, .35, 1); }
-  #splash .line { position: absolute; left: 50%; width: 2px; margin-left: -1px; background: var(--main); border-radius: 1px;
-    transform: scaleY(0); transform-origin: top; }
-  #splash .blob { position: absolute; left: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--main);
-    transform: translate(-50%, -50%) scale(0); display: flex; flex-direction: column; align-items: center; justify-content: center;
-    color: #fff; font-family: 'SplashFont', 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif; font-weight: 700; overflow: hidden; }
-  #splash .blob .s1 { opacity: .85; letter-spacing: .14em; white-space: nowrap; min-height: 1.3em; }
-  #splash .blob .s2 { letter-spacing: .06em; white-space: nowrap; min-height: 1.3em; line-height: 1.3; }
-  #splash .cur { display: inline-block; width: 1.5px; height: .95em; background: rgba(255,255,255,.9); vertical-align: -.1em; margin-left: 3px; animation: blink .9s step-end infinite; }
+  #splash { position: fixed; inset: 0; z-index: 50; background: #fff; overflow: hidden; transition: opacity .5s ease; }
+  #splash .band { position: absolute; left: 0; right: 0; top: 0; height: calc(56px + env(safe-area-inset-top)); background: var(--main); transform: scaleX(0); transform-origin: left; }
+  #splash .line { position: absolute; left: 50%; width: 2px; margin-left: -1px; background: var(--main); border-radius: 1px; transform: scaleY(0); transform-origin: top; }
+  #splash .drop { position: absolute; left: 50%; width: 14px; height: 20px; margin-left: -7px; fill: var(--main); opacity: 0; transform-origin: 50% 100%; overflow: visible; }
+  #splash .logo { position: absolute; left: 50%; background: var(--main); border-radius: 23%; transform: scale(0); display: flex; align-items: center; justify-content: center;
+    color: #fff; font-family: 'SplashFont', 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif; font-weight: 700; box-shadow: 0 18px 40px rgba(31,138,76,0); }
+  #splash .logo .in { display: flex; flex-direction: column; align-items: center; }
+  #splash .logo .s1 { letter-spacing: .24em; padding-left: .24em; opacity: .82; white-space: nowrap; min-height: 1.4em; line-height: 1.4; }
+  #splash .logo .s2 { letter-spacing: .04em; white-space: nowrap; min-height: 1.35em; line-height: 1.35; }
+  #splash .logo .rule { width: 18%; height: 1px; background: rgba(255,255,255,.5); transform: scaleX(0); }
+  #splash .logo .s3 { letter-spacing: .42em; padding-left: .42em; opacity: .82; white-space: nowrap; min-height: 1.4em; line-height: 1.4; }
+  #splash .cur { display: inline-block; width: 1px; height: .9em; background: rgba(255,255,255,.85); vertical-align: -.08em; margin-left: 2px; animation: blink .9s step-end infinite; }
   #splash .tap { position: absolute; left: 0; right: 0; text-align: center; font-family: 'SplashFont', 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
-    font-weight: 700; font-size: 13px; letter-spacing: .3em; color: var(--sub); opacity: 0; transform: translateY(6px); transition: opacity .8s ease, transform .8s ease; }
+    font-weight: 700; font-size: 12px; letter-spacing: .36em; padding-left: .36em; color: var(--sub); opacity: 0; transform: translateY(6px); transition: opacity .9s ease, transform .9s ease; }
   #splash .tap.on { opacity: 1; transform: none; }
-  #splash .tap.on span { animation: breathe 2.4s ease-in-out infinite; }
+  #splash .tap.on span { animation: breathe 2.6s ease-in-out infinite; }
   #splash.out { opacity: 0; pointer-events: none; }
   @keyframes blink { 50% { opacity: 0; } }
   @keyframes breathe { 50% { opacity: .35; } }
@@ -156,7 +157,7 @@
 </style>
 </head>
 <body>
-<div id="splash" aria-label="LINEで届く あなたの秘書"><div class="band"></div><div class="line"></div><div class="blob"><div class="s1"></div><div class="s2"></div></div><div class="tap"><span>タップしてください</span></div></div>
+<div id="splash" aria-label="LINEで届く あなたの秘書 リマインダー"><div class="band"></div><div class="line"></div><svg class="drop" viewBox="0 0 20 28" aria-hidden="true"><path d="M10 0C10 0 2.2 10.4 2.2 17.8a7.8 7.8 0 0 0 15.6 0C17.8 10.4 10 0 10 0z"/></svg><div class="logo"><div class="in"><div class="s1"></div><div class="s2"></div><div class="rule"></div><div class="s3"></div></div></div><div class="tap"><span>タップしてください</span></div></div>
 <div id="busy"><div class="bx"><div class="sp"></div>読み込み中です</div></div>
 <div class="topbar">
 <header>
@@ -179,7 +180,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.012';
+  var SITE_VERSION = '1.1.013';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -1107,70 +1108,80 @@
   }
 
   // ---------- 起動 ----------
-  // 開いたときの画面：緑の帯 → 帯のまん中から細い線が下へ → ひとしずく落ちる → 広がってロゴ → 白い文字が1字ずつ打たれる → タップで中へ
+  // 開いたときの画面：緑の帯 → 帯のまん中から細い線が下へ → 線の先に雨だれがふくらんで離れる → 落ちながら縦にのびる
+  //   → 着地してつぶれる → パッと正方形のロゴに広がる → 白い文字が1字ずつ打たれる → タップで中へ
   (function splash() {
-    var sp = document.getElementById('splash'), band = sp.querySelector('.band'), line = sp.querySelector('.line'),
-        blob = sp.querySelector('.blob'), s1 = blob.querySelector('.s1'), s2 = blob.querySelector('.s2'), tap = sp.querySelector('.tap');
-    var A = 'LINEで届く', B = 'あなたの秘書', cur = '<span class="cur"></span>';
-    var vw = window.innerWidth, vh = window.innerHeight;
-    var bandB = band.getBoundingClientRect().height;
-    var W = Math.round(Math.min(vw * 0.78, 300)), H = Math.round(W * 0.56);
-    var Y = Math.round(bandB + (vh - bandB) * 0.44);          // ロゴのまん中の高さ
-    var dropY = Math.round(Y - H * 0.5 - 18);                // 線が止まって、しずくになるところ
-    s1.style.fontSize = Math.round(W * 0.058) + 'px'; s2.style.fontSize = Math.round(W * 0.105) + 'px';
-    line.style.top = bandB + 'px'; line.style.height = (dropY - bandB) + 'px';
-    blob.style.top = dropY + 'px';
-    tap.style.top = (Y + H / 2 + 30) + 'px';
-    var timers = [], ready = false, typed = false;
+    var sp = document.getElementById('splash'), band = sp.querySelector('.band'), line = sp.querySelector('.line'), drop = sp.querySelector('.drop'),
+        logo = sp.querySelector('.logo'), s1 = logo.querySelector('.s1'), s2 = logo.querySelector('.s2'), rule = logo.querySelector('.rule'), s3 = logo.querySelector('.s3'),
+        tap = sp.querySelector('.tap');
+    var A = 'LINEで届く', B = 'あなたの秘書', C = 'リマインダー', cur = '<span class="cur"></span>';
+    var vw = window.innerWidth, vh = window.innerHeight, bandB = band.getBoundingClientRect().height;
+    var W = Math.round(Math.min(vw * 0.56, 232, (vh - bandB) * 0.5));          // 正方形のロゴの一辺
+    var Y = Math.round(bandB + (vh - bandB) * 0.45);                         // ロゴのまん中（＝しずくの着地点）
+    var lineEnd = Math.round(bandB + (Y - bandB) * 0.42);                    // 線が止まって、しずくがふくらむところ
+    var DH = 20;                                                             // しずくの高さ
+    logo.style.width = logo.style.height = W + 'px'; logo.style.marginLeft = -W / 2 + 'px'; logo.style.top = (Y - W / 2) + 'px';
+    s1.style.fontSize = Math.round(W * 0.064) + 'px'; s2.style.fontSize = Math.round(W * 0.128) + 'px'; s3.style.fontSize = Math.round(W * 0.056) + 'px';
+    rule.style.margin = Math.round(W * 0.05) + 'px 0 ' + Math.round(W * 0.045) + 'px';
+    line.style.top = bandB + 'px'; line.style.height = (lineEnd - bandB) + 'px';
+    drop.style.top = (lineEnd - 3) + 'px';
+    tap.style.top = (Y + W / 2 + 34) + 'px';
+    var anims = [], timers = [], ready = false, done = false;
     var at = function (ms, fn) { timers.push(setTimeout(fn, ms)); };
+    var go = function (el, frames, opt) { var a = el.animate(frames, Object.assign({ fill: 'forwards' }, opt)); anims.push(a); return a; };
     var fontReady = (document.fonts && document.fonts.load) ? Promise.race([document.fonts.load("700 20px 'SplashFont'"), new Promise(function (r) { setTimeout(r, 1500); })]) : Promise.resolve();
-    function type() {
-      if (typed) return; typed = true;
+    function typeOut(el, text, ms, then) {
       var i = 0;
-      var next = function () {
-        i++;
-        if (i <= A.length) { s1.innerHTML = esc(A.slice(0, i)) + cur; at(70, next); }
-        else if (i <= A.length + B.length) { s1.textContent = A; s2.innerHTML = esc(B.slice(0, i - A.length)) + cur; at(95, next); }
-        else { s2.innerHTML = esc(B) + cur; at(350, function () { tap.classList.add('on'); ready = true; }); }
-      };
-      fontReady.then(next);
+      (function next() { i++; el.innerHTML = esc(text.slice(0, i)) + cur; if (i < text.length) at(ms, next); else at(ms, function () { el.textContent = text; then && then(); }); })();
+    }
+    function type() {
+      fontReady.then(function () {
+        typeOut(s1, A, 65, function () {
+          typeOut(s2, B, 90, function () {
+            go(rule, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 420, easing: 'cubic-bezier(.65,0,.35,1)' });
+            at(260, function () { typeOut(s3, C, 70, function () { at(250, function () { tap.classList.add('on'); ready = true; }); }); });
+          });
+        });
+      });
     }
     function finalState() {
-      timers.forEach(clearTimeout); timers = [];
-      band.style.transition = line.style.transition = blob.style.transition = 'none';
-      band.style.transform = 'scaleX(1)'; line.style.transform = 'scaleY(0)';
-      blob.style.top = Y + 'px'; blob.style.width = W + 'px'; blob.style.height = H + 'px'; blob.style.borderRadius = '28px';
-      blob.style.transform = 'translate(-50%, -50%) scale(1)'; blob.style.boxShadow = '0 14px 34px rgba(31,138,76,.22)';
-      s1.textContent = A; s2.innerHTML = esc(B) + cur; typed = true; tap.classList.add('on'); ready = true;
+      timers.forEach(clearTimeout); timers = []; anims.forEach(function (a) { try { a.cancel(); } catch (e) {} }); anims = [];
+      band.style.transform = 'scaleX(1)'; line.style.transform = 'scaleY(0)'; drop.style.opacity = '0';
+      logo.style.transform = 'scale(1)'; logo.style.boxShadow = '0 18px 40px rgba(31,138,76,.22)'; rule.style.transform = 'scaleX(1)';
+      s1.textContent = A; s2.textContent = B; s3.textContent = C; tap.classList.add('on'); ready = true;
     }
-    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var reduce = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || !Element.prototype.animate;
     requestAnimationFrame(function () {
       if (reduce) { finalState(); return; }
-      band.style.transform = 'scaleX(1)';                                         // 1. 帯が引かれる
-      at(520, function () {                                                       // 2. 帯のまん中から、細い線が下へ伸びる
-        line.style.transition = 'transform .5s cubic-bezier(.55, 0, .9, .45)'; line.style.transform = 'scaleY(1)';
-      });
-      at(1000, function () {                                                      // 3. 線の先が、ひとしずくになる
-        blob.style.transition = 'transform .18s cubic-bezier(.34, 1.56, .64, 1)'; blob.style.transform = 'translate(-50%, -50%) scale(1)';
-        line.style.transformOrigin = 'bottom'; line.style.transition = 'transform .28s cubic-bezier(.4, 0, .2, 1)'; line.style.transform = 'scaleY(0)';
-      });
-      at(1200, function () {                                                      // 4. しずくが落ちる
-        blob.style.transition = 'top .3s cubic-bezier(.55, 0, .9, .45)'; blob.style.top = Y + 'px';
-      });
-      at(1500, function () {                                                      // 5. 広がって、ロゴの形になる
-        blob.style.transition = 'width .7s cubic-bezier(.34, 1.36, .64, 1), height .7s cubic-bezier(.34, 1.36, .64, 1), border-radius .7s ease, box-shadow .9s ease';
-        blob.style.width = W + 'px'; blob.style.height = H + 'px'; blob.style.borderRadius = '28px'; blob.style.boxShadow = '0 14px 34px rgba(31,138,76,.22)';
-      });
-      at(2150, type);                                                             // 6. 白い文字が1字ずつ打たれる
+      var EIN = 'cubic-bezier(.55,0,.9,.45)', EOUT = 'cubic-bezier(.22,1,.36,1)';
+      go(band, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 620, easing: 'cubic-bezier(.65,0,.35,1)' });
+      // 線：帯のまん中から下へ
+      go(line, [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { delay: 520, duration: 460, easing: EIN });
+      // 雨だれ：線の先でふくらむ（少し縦にのびて、ぶら下がる）
+      go(drop, [{ opacity: 0, transform: 'scale(.15, .2)' }, { opacity: 1, transform: 'scale(.9, 1)', offset: .6 }, { opacity: 1, transform: 'scale(1, 1.12)' }],
+        { delay: 940, duration: 360, easing: EOUT });
+      // 線は、しずくの方へ吸い込まれて消える
+      at(1060, function () { line.style.transformOrigin = 'bottom'; go(line, [{ transform: 'scaleY(1)' }, { transform: 'scaleY(0)' }], { duration: 320, easing: 'cubic-bezier(.4,0,.2,1)' }); });
+      // 落ちる：下に行くほど縦長に
+      var fall = Y - (lineEnd - 3) - DH;
+      go(drop, [{ transform: 'translateY(0) scale(1, 1.12)' }, { transform: 'translateY(' + fall + 'px) scale(.8, 1.5)' }], { delay: 1300, duration: 380, easing: EIN });
+      // 着地：つぶれて、消える
+      go(drop, [{ transform: 'translateY(' + fall + 'px) scale(.8, 1.5)', opacity: 1 }, { transform: 'translateY(' + fall + 'px) scale(1.7, .38)', opacity: 1, offset: .55 },
+                { transform: 'translateY(' + fall + 'px) scale(2.2, .2)', opacity: 0 }], { delay: 1680, duration: 170, easing: 'ease-out' });
+      // パッと広がって、正方形のロゴに（いったん少し行き過ぎて、戻る）
+      go(logo, [{ transform: 'scale(.06, .02)', borderRadius: '50%' }, { transform: 'scale(1.07, .9)', borderRadius: '26%', offset: .42 },
+                { transform: 'scale(.97, 1.04)', borderRadius: '23%', offset: .7 }, { transform: 'scale(1, 1)', borderRadius: '23%' }],
+        { delay: 1745, duration: 820, easing: 'cubic-bezier(.2,.9,.3,1)' });
+      go(logo, [{ boxShadow: '0 18px 40px rgba(31,138,76,0)' }, { boxShadow: '0 18px 40px rgba(31,138,76,.22)' }], { delay: 2100, duration: 900, easing: 'ease' });
+      at(2450, type);
     });
     sp.onclick = function () {
       if (!ready) { finalState(); return; }                                       // 途中で押したら、最後の形まで進める
-      if (sp.dataset.done) return; sp.dataset.done = '1';
-      blob.style.transition = 'transform .45s cubic-bezier(.34, 1.56, .64, 1)';
-      blob.style.transform = 'translate(-50%, -50%) scale(.93)';
-      setTimeout(function () { blob.style.transform = 'translate(-50%, -50%) scale(1.03)'; }, 120);
-      setTimeout(function () { sp.classList.add('out'); }, 380);
-      setTimeout(function () { sp.style.display = 'none'; }, 850);
+      if (done) return; done = true;
+      logo.animate([{ transform: 'scale(1)' }, { transform: 'scale(.93)', offset: .3 }, { transform: 'scale(1.03)', offset: .65 }, { transform: 'scale(1)' }],
+        { duration: 460, easing: 'ease-out', fill: 'forwards' });
+      setTimeout(function () { sp.classList.add('out'); }, 400);
+      setTimeout(function () { sp.style.display = 'none'; }, 900);
     };
   })();
 
