@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LINEで届く あなたの秘書</title>
+<meta name="theme-color" content="#1f8a4c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="あなたの秘書">
 <style>
   :root {
     --bg: #f5f6f4; --card: #ffffff; --ink: #1f2a24; --sub: #66736b; --line: #e2e6e2;
@@ -35,6 +42,7 @@
   .sub button.on { background: var(--main); color: #fff; border-color: var(--main); }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
   .item { cursor: pointer; }
+  .item .kd { font-size: 12px; font-weight: 700; color: var(--main); margin-bottom: 2px; }
   .item .t { font-weight: 700; word-break: break-all; }
   .item .m { color: var(--sub); font-size: 13px; margin-top: 2px; }
   .chip { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--main-soft); color: var(--main); margin-right: 4px; }
@@ -99,9 +107,56 @@
   .calrow:first-child { border-top: 0; }
   .calrow input { width: 22px; height: 22px; flex: none; }
   .warnbox { background: var(--warn-soft); border: 1px solid #f3c3bd; border-radius: 10px; padding: 8px 10px; font-size: 13px; color: var(--warn); margin-top: 6px; }
+  /* ── さわった感じ（押すと少し沈んで、はねて戻る） ── */
+  .btn, nav.tabs button, .item, .filter button, .sub button, .hbtn, header .gear, header .st, .add {
+    transition: transform .32s cubic-bezier(.34, 1.56, .64, 1), box-shadow .2s; -webkit-tap-highlight-color: transparent; }
+  .btn:active, nav.tabs button:active, .item:active, .filter button:active, .sub button:active, .hbtn:active, header .gear:active, header .st:active, .add:active {
+    transform: scale(.94); transition-duration: .08s; }
+  header h1 { cursor: pointer; }
+  /* ── 開いたときの画面 ── */
+  #splash { position: fixed; inset: 0; z-index: 50; background: #fff; display: flex; flex-direction: column; transition: opacity .35s; }
+  #splash .band { height: calc(56px + env(safe-area-inset-top)); background: var(--main); flex: none; transform: scaleX(0); transform-origin: left; animation: bandIn .5s ease-out forwards; }
+  #splash .mid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding-bottom: 8vh; }
+  #splash .logo { width: 112px; height: 112px; border-radius: 26px; background: var(--main); color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 700; letter-spacing: 2px; box-shadow: 0 10px 24px rgba(31,138,76,.35); transform: scale(0); }
+  #splash .logo.pop { animation: pop .6s cubic-bezier(.34, 1.56, .64, 1) forwards; }
+  #splash .logo.press { animation: press .45s cubic-bezier(.34, 1.56, .64, 1) forwards; }
+  #splash .ty { text-align: center; color: var(--ink); min-height: 64px; }
+  #splash .ty .s1 { font-size: 14px; color: var(--sub); min-height: 20px; }
+  #splash .ty .s2 { font-size: 26px; font-weight: 700; min-height: 36px; }
+  #splash .ty .cur { display: inline-block; width: 2px; height: 1em; background: var(--main); vertical-align: -2px; margin-left: 2px; animation: blink .8s step-end infinite; }
+  #splash .tap { font-size: 13px; color: var(--sub); opacity: 0; transition: opacity .4s; }
+  #splash .tap.on { opacity: 1; animation: breathe 1.6s ease-in-out infinite; }
+  #splash.out { opacity: 0; pointer-events: none; }
+  @keyframes bandIn { to { transform: scaleX(1); } }
+  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  @keyframes press { 0% { transform: scale(1); } 30% { transform: scale(.86); } 65% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes breathe { 50% { opacity: .45; } }
+  /* ── ホーム画面 ── */
+  .home { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 0 30px; }
+  .home .hello { color: var(--sub); font-size: 14px; margin-bottom: 4px; }
+  .hbtn { width: 72%; max-width: 420px; border: 0; border-radius: 18px; background: #fff; box-shadow: 0 3px 10px rgba(0,0,0,.08), inset 0 0 0 1px var(--line);
+    padding: 16px 18px; font: inherit; text-align: left; color: var(--ink); display: flex; align-items: center; gap: 12px; position: relative; }
+  .hbtn .ic { flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--main-soft); color: var(--main); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .hbtn .lb { font-size: 17px; font-weight: 700; line-height: 1.3; }
+  .hbtn .sm { font-size: 12px; color: var(--sub); line-height: 1.4; }
+  .hbtn .dot { position: absolute; top: 10px; right: 12px; width: 9px; height: 9px; border-radius: 50%; background: var(--warn); }
+  .hbtn.goL, .hbtn.goR { transition: transform .45s cubic-bezier(.55, 0, .7, .2), opacity .45s; opacity: 0; }
+  .hbtn.goL { transform: translateX(-120vw); }
+  .hbtn.goR { transform: translateX(120vw); }
+  .hbtn.chosen { transition: transform .5s cubic-bezier(.34, 1.4, .64, 1); z-index: 2; box-shadow: 0 10px 26px rgba(31,138,76,.25), inset 0 0 0 2px var(--main); }
+  /* ── 読み込み中 ── */
+  #busy { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,.35); }
+  #busy.show { display: flex; }
+  #busy .bx { background: #fff; border-radius: 16px; padding: 18px 24px; box-shadow: 0 8px 24px rgba(0,0,0,.15); display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 14px; animation: pop .35s cubic-bezier(.34, 1.56, .64, 1); }
+  #busy .sp { width: 34px; height: 34px; border-radius: 50%; border: 4px solid var(--main-soft); border-top-color: var(--main); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
+<div id="splash"><div class="band"></div><div class="mid"><div class="ty"><div class="s1"></div><div class="s2"></div></div><div class="logo">秘書</div><div class="tap">タップしてください</div></div></div>
+<div id="busy"><div class="bx"><div class="sp"></div>読み込み中です</div></div>
 <div class="topbar">
 <header>
   <h1><small>LINEで届く</small>あなたの秘書</h1>
@@ -110,9 +165,7 @@
 <nav class="tabs" id="tabs" style="display:none">
   <button data-tab="today">今日</button>
   <button data-tab="tomorrow">明日</button>
-  <button data-tab="tasks">タスク</button>
-  <button data-tab="routine">定例</button>
-  <button data-tab="irregular">単発</button>
+  <button data-tab="tasks">タスク（定例・単発）</button>
   <button data-tab="check" class="chk">初期確認</button>
 </nav>
 </div>
@@ -125,7 +178,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.009';
+  var SITE_VERSION = '1.1.011';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -150,14 +203,22 @@
         return j;
       });
   }
+  // 読み込み中のくるくる（0.2秒より長くかかるときだけ出す）
+  var BUSY_N = 0, BUSY_T = null;
+  function busyOn() { BUSY_N++; if (BUSY_N === 1) BUSY_T = setTimeout(function () { document.getElementById('busy').classList.add('show'); }, 200); }
+  function busyOff() { BUSY_N = Math.max(0, BUSY_N - 1); if (!BUSY_N) { clearTimeout(BUSY_T); document.getElementById('busy').classList.remove('show'); } }
+  function withBusy(p) { busyOn(); return p.then(function (v) { busyOff(); return v; }, function (e) { busyOff(); throw e; }); }
+  var BUSY_ACTIONS = { load: 1, preview: 1, save: 1, 'delete': 1, saveSettings: 1, saveLine: 1, calendars: 1, changeKey: 1 };
   // お客さん自身のスプレッドシート（予定やタスクの中身）
   function api(action, extra) {
-    return post_(S.conn.url, Object.assign({ action: action, key: S.conn.pw, accountId: S.conn.id }, extra || {}));
+    var p = post_(S.conn.url, Object.assign({ action: action, key: S.conn.pw, accountId: S.conn.id }, extra || {}));
+    return BUSY_ACTIONS[action] ? withBusy(p) : p;
   }
   // 提供者の顧客管理（利用者IDとパスワードだけ）
   function adminApi(action, extra, cred) {
     cred = cred || S.conn;
-    return post_(ADMIN_URL, Object.assign({ action: action, id: cred.id, pw: cred.pw }, extra || {}));
+    var p = post_(ADMIN_URL, Object.assign({ action: action, id: cred.id, pw: cred.pw }, extra || {}));
+    return (action === 'login' || action === 'adminList' || action === 'changePassword' || action === 'bind') ? withBusy(p) : p;
   }
   function busy(btn, on, label) { if (!btn) return; btn.disabled = on; if (on) { btn._l = btn.textContent; btn.textContent = label || '処理中…'; } else if (btn._l) btn.textContent = btn._l; }
 
@@ -326,7 +387,8 @@
     S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null; S.version = j.version || ''; S.offsets = j.offsets || [];
     carryOldFlags();
     document.getElementById('tabs').style.display = 'flex';
-    if (!S.landed) { S.landed = true; if (setupLeft()) S.tab = 'check'; }
+    if (!S.landed) { S.landed = true; S.tab = 'home'; }
+    markStandalone();
     updateHeader();
     render();
   }
@@ -343,7 +405,7 @@
   }
   var FLAGS = 'lineHishoFlags';
   // 「はじめにやること」の進み具合は、スプレッドシートの「設定」に残す（どの端末から開いても同じ）
-  var FLAG_KEYS = { timeSet: '準備：時刻を決めた', testSent: '準備：送信確認' };
+  var FLAG_KEYS = { timeSet: '準備：時刻を決めた', testSent: '準備：送信確認', home: '準備：ホーム画面' };
   function flags() {
     var st = S.settings || {}, f = {};
     Object.keys(FLAG_KEYS).forEach(function (k) { if (st[FLAG_KEYS[k]] === '○') f[k] = 1; });
@@ -369,20 +431,21 @@
     if (S.tab === 'settings') { S.tab = S.prevTab || 'today'; render(); } else openSettings();
   };
   document.getElementById('hdrState').onclick = function () { openSettings('secLine'); };
+  document.querySelector('header h1').onclick = function () { if (S.data) { S.tab = 'home'; render(); } };
 
 
   // ---------- 画面切り替え ----------
   function render() {
     [].forEach.call(document.querySelectorAll('nav.tabs button'), function (b) { b.classList.toggle('on', b.dataset.tab === S.tab); });
     var add = document.getElementById('addBtn');
-    add.style.display = (S.tab === 'tasks' || S.tab === 'routine' || S.tab === 'irregular') ? 'block' : 'none';
+    add.style.display = S.tab === 'tasks' ? 'block' : 'none';
     updateHeader();
     window.scrollTo(0, 0);
-    ({ admin: viewAdmin, today: viewToday, tomorrow: viewTomorrow, tasks: viewTasks, routine: viewRoutine, irregular: viewIrregular, check: viewCheck, settings: viewSettings })[S.tab]();
+    ({ home: viewHome, admin: viewAdmin, today: viewToday, tomorrow: viewTomorrow, tasks: viewTasks, check: viewCheck, settings: viewSettings })[S.tab]();
   }
   document.getElementById('tabs').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.tab; render(); };
   document.getElementById('addBtn').onclick = function () {
-    openEditor(S.tab === 'tasks' ? 'タスク台帳' : S.tab === 'routine' ? '定例' : 'イレギュラー', null);
+    chooseAdd();
   };
 
   // ---------- 今日 ----------
@@ -393,8 +456,9 @@
       { t: 'Apps Scriptとつなぐ', done: true },
       { t: 'LINEとつなぐ', d: '秘書用のLINE公式アカウントから届くようにします。', done: lineOk(), go: 'line', btn: 'LINEとつなぐ' },
       { t: '毎日のリマインドの時刻を決める', d: '毎日何時に届けるかを決めます。朝7時のままでよければ、開いて「保存する」を押すだけです。', done: !!f.timeSet, go: 'time', btn: '毎日のリマインドの時刻を決める' },
-      { t: '予定やタスクを入れる', d: 'くり返しの定例（毎週月曜・隔週・毎月第3土曜など）や、今かかえているタスクを入れます。', done: hasData, go: 'routine', btn: '定例を入れる' },
-      { t: 'LINE送信確認', d: 'ちゃんと届くかを確かめます。無料の月200通のうち、1通を使います。', done: !!f.testSent, go: 'send', btn: 'メッセージをLINEに送る' }
+      { t: '予定やタスクを入れる', d: '「タスク（定例・単発）」タブで、くり返しの定例（毎週月曜・隔週・毎月第3土曜など）や、単発の予定・やることを入れます。', done: hasData, go: 'tasks', btn: '予定やタスクを入れる' },
+      { t: 'LINE送信確認', d: 'ちゃんと届くかを確かめます。無料の月200通のうち、1通を使います。', done: !!f.testSent, go: 'send', btn: 'メッセージをLINEに送る' },
+      { t: 'スマホのホーム画面に追加する', d: 'このサイトをスマホのホーム画面に置くと、アプリのように開けます。', done: !!f.home || isStandalone(), go: 'homeAdd', btn: 'ホーム画面に追加する' }
     ];
   }
   function setupCard() {
@@ -467,9 +531,32 @@
     return '<p class="note">' + (next ? '「翌日の予定を送る」がオンなので、明日の予定で作っています。' : '今日の予定で作っています。') + '</p>' +
       '<div id="' + id + '"><div class="loading">作っています…</div></div>';
   }
+  // 作った内容は、その日のあいだ保存しておく（日付が変わったとき・予定や設定を変えたときだけ作り直す）
+  function stampOf() {
+    var str = JSON.stringify([S.data, S.settings]), h = 5381;
+    for (var i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+    return String(h);
+  }
   function bindPreview(id, day) {
-    api('preview', day ? { day: day } : {}).then(function (j) { var el = document.getElementById(id); if (el) el.innerHTML = '<pre class="msg">' + esc(j.text) + '</pre>'; })
-      .catch(function (e) { var el = document.getElementById(id); if (el) el.innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
+    var next = day === 'tomorrow' || (!day && (S.settings || {})['翌日の予定を送る'] === '○');
+    var t = today(), target = next ? nToYmd(ymdN(t) + 1) : t;
+    var key = 'lineHishoPv:' + (S.conn ? S.conn.id : '') + ':' + (day || 'line');
+    var put = function (c) {
+      var el = document.getElementById(id); if (!el) return;
+      el.innerHTML = '<pre class="msg">' + esc(c.text) + '</pre>' +
+        '<p class="note" style="text-align:right;margin-top:6px">' + esc(c.at) + ' に作成　<a href="#" class="pvRe" style="color:var(--main)">作り直す</a></p>';
+      el.querySelector('.pvRe').onclick = function (e) { e.preventDefault(); make(); };
+    };
+    var make = function () {
+      var el = document.getElementById(id); if (el) el.innerHTML = '<div class="loading">作っています…</div>';
+      api('preview', day ? { day: day } : {}).then(function (j) {
+        var d = new Date(), c = { date: target, stamp: stampOf(), text: j.text, at: (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) };
+        try { localStorage.setItem(key, JSON.stringify(c)); } catch (e) {}
+        put(c);
+      }).catch(function (e) { var el = document.getElementById(id); if (el) el.innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
+    };
+    var c = null; try { c = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
+    if (c && c.date === target && c.stamp === stampOf()) put(c); else make();
   }
 
   // 今日・明日：その日の予定（LINEに届くのと同じ形で表示）
@@ -521,9 +608,61 @@
       var g = this.dataset.go;
       if (g === 'line') openSettings('secLine');
       else if (g === 'time') openSettings('secTime');
-      else if (g === 'routine') { S.tab = 'routine'; render(); }
+      else if (g === 'tasks') { S.tab = 'tasks'; render(); }
       else if (g === 'send') doSend();
+      else if (g === 'homeAdd') openHomeGuide();
     };
+  }
+
+  // ---------- ホーム画面に追加（アプリのように使う） ----------
+  function isStandalone() { try { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; } catch (e) { return false; } }
+  // ホーム画面から開いたときは、それだけで「ホーム画面に追加する」を終わった扱いにする
+  function markStandalone() {
+    if (!isStandalone() || flags().home) return;
+    api('saveSettings', { settings: { '準備：ホーム画面': '○' } }).then(function (j) { S.settings = j.settings; updateHeader(); }).catch(function () {});
+  }
+  function openHomeGuide() {
+    openModal('<h3>スマホのホーム画面に追加する</h3>' +
+      '<p class="note">このサイトをホーム画面に置くと、アプリのように1回タップで開けます。</p>' +
+      '<h2 style="margin-top:10px">iPhoneのとき</h2><ol style="padding-left:1.3em;margin:4px 0">' +
+      '<li>このサイトを <b>Safari</b> で開きます</li><li>画面の下（または上）の <b>共有ボタン</b>（四角から上向きの矢印）を押します</li>' +
+      '<li><b>「ホーム画面に追加」</b>を押し、右上の<b>「追加」</b>を押します</li></ol>' +
+      '<h2>Androidのとき</h2><ol style="padding-left:1.3em;margin:4px 0">' +
+      '<li>このサイトを <b>Chrome</b> で開きます</li><li>右上の <b>「⋮」</b>（縦に点が3つ）を押します</li>' +
+      '<li><b>「ホーム画面に追加」</b>（または「アプリをインストール」）を押し、<b>「追加」</b>（または「インストール」）を押します</li></ol>' +
+      '<p class="note">ホーム画面から開いたときに、ログインの画面が出ることがあります。そのときは、同じ利用者IDとパスワードでログインしてください。</p>' +
+      '<div class="actions"><button class="btn" id="hgDone">ホーム画面に追加しました</button><button class="btn sec" id="hgNo">閉じる</button></div>');
+    document.getElementById('hgNo').onclick = closeModal;
+    document.getElementById('hgDone').onclick = function () {
+      var btn = this; busy(btn, true, '保存しています…');
+      api('saveSettings', { settings: { '準備：ホーム画面': '○' } }).then(function (j) { S.settings = j.settings; closeModal(); render(); toast('ありがとうございます。次からはホーム画面から開けます'); })
+        .catch(function (e) { busy(btn, false); toast(e.message, true); });
+    };
+  }
+
+  // ---------- ホーム（大きなボタンが並ぶ画面） ----------
+  function viewHome() {
+    var t = today(), wk = ['日', '月', '火', '水', '木', '金', '土'];
+    var dl = function (ymd) { var p = ymd.split('-').map(Number), d = new Date(p[0], p[1] - 1, p[2]); return (p[1]) + '/' + p[2] + '（' + wk[d.getDay()] + '）'; };
+    var tm = nToYmd(ymdN(t) + 1), left = setupLeft();
+    var open = allItems().filter(function (x) { return !x.over && x.kind === 'やること'; }).length;
+    var b = function (to, ic, lb, sm, dot) { return '<button class="hbtn" data-to="' + to + '"><span class="ic">' + ic + '</span><span><span class="lb">' + lb + '</span><br><span class="sm">' + sm + '</span></span>' + (dot ? '<span class="dot"></span>' : '') + '</button>'; };
+    app.innerHTML = '<div class="home"><div class="hello">' + esc(S.conn && S.conn.name ? S.conn.name + 'さんの秘書' : 'あなたの秘書') + '</div>' +
+      b('today', '☀', '今日の予定', dl(t)) +
+      b('tomorrow', '🌙', '明日の予定', dl(tm)) +
+      b('tasks', '✓', 'タスク（定例・単発）', '残りのやること ' + open + '件') +
+      b('check', '⚙', '初期確認', left ? 'はじめにやること あと' + left + 'つ' : 'はじめにやることは全部終わっています', left > 0) +
+      '</div>';
+    var btns = [].slice.call(app.querySelectorAll('.hbtn'));
+    btns.forEach(function (el) {
+      el.onclick = function () {
+        if (app.dataset.moving) return; app.dataset.moving = '1';
+        var i = btns.indexOf(el), r = el.getBoundingClientRect(), dy = window.innerHeight / 2 - (r.top + r.height / 2);
+        btns.forEach(function (o, j) { if (o !== el) o.classList.add(j % 2 ? 'goR' : 'goL'); });
+        setTimeout(function () { el.classList.add('chosen'); el.style.transform = 'translateY(' + dy + 'px) scale(1.04)'; }, 120);
+        setTimeout(function () { delete app.dataset.moving; S.tab = el.dataset.to; render(); }, 640);
+      };
+    });
   }
 
   // ---------- 一覧の共通部品 ----------
@@ -546,39 +685,123 @@
     return (r['開始'] || '') + (r['終了'] ? '〜' + r['終了'] : '');
   }
 
-  // ---------- タスク ----------
+  // ---------- タスク（定例・単発）：定例・単発の予定・単発のやることを1つの一覧に ----------
   var STATE_CHIP = { '未着手': 'gray', '途中': '', '止まっている': 'warn', 'お返事待ち': 'amber', '完了': 'gray' };
-  function viewTasks() {
-    var filters = ['未完了', '緊急', '途中', '止まっている', 'お返事待ち', '未着手', '完了', 'すべて'];
-    var rows = (S.data['タスク台帳'] || []).filter(function (r) {
-      var f = S.taskFilter;
-      if (f === 'すべて') return true;
-      if (f === '未完了') return r['状態'] !== '完了';
-      if (f === '緊急') return r['緊急'] === '○' && r['状態'] !== '完了';
-      return r['状態'] === f;
-    }).sort(function (a, b) {
-      var ua = a['緊急'] === '○' ? 0 : 1, ub = b['緊急'] === '○' ? 0 : 1; if (ua !== ub) return ua - ub;
-      return (a['期限'] || '9999').localeCompare(b['期限'] || '9999');
+  var PRI = { '最優先': 0, '優先': 1, '普通': 2 };
+  function priOf(r) { return r['優先度'] || (r['緊急'] === '○' ? '最優先' : '普通'); }
+  // 日付の計算（GASの occursOn_ と同じ考え方）
+  function ymdN(s) { var p = String(s || '').split('-').map(Number); return (p.length === 3 && p[0]) ? Date.UTC(p[0], p[1] - 1, p[2]) / 86400000 : null; }
+  function nToYmd(n) { var d = new Date(n * 86400000); return d.getUTCFullYear() + '-' + ('0' + (d.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + d.getUTCDate()).slice(-2); }
+  var WK7 = ['日', '月', '火', '水', '木', '金', '土'];
+  function occurs(r, n) {
+    var base = ymdN(r['開始日']), endN = ymdN(r['終了日']);
+    if (base !== null && n < base) return false;
+    if (endN !== null && n > endN) return false;
+    var k = Math.max(1, Math.floor(Number(r['間隔']) || 1));
+    var step = function (diff) { return base === null ? k === 1 : diff % k === 0; };
+    var d = new Date(n * 86400000), y = d.getUTCFullYear(), m = d.getUTCMonth() + 1, day = d.getUTCDate(), wd = WK7[d.getUTCDay()];
+    if (r['単位'] === '日') return step(n - (base === null ? 0 : base));
+    if (r['単位'] === '週') {
+      var days = String(r['曜日'] || '') || (base !== null ? WK7[new Date(base * 86400000).getUTCDay()] : '');
+      if (days.indexOf(wd) < 0) return false;
+      var wk = function (x) { return Math.floor((x + 3) / 7); };
+      return step(wk(n) - (base === null ? 0 : wk(base)));
+    }
+    if (r['単位'] === 'か月') {
+      var bd = base === null ? null : new Date(base * 86400000);
+      if (!step(y * 12 + m - (bd ? bd.getUTCFullYear() * 12 + bd.getUTCMonth() + 1 : 0))) return false;
+      var last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      if ((r['月の決め方'] || '日付で') === '日付で') return r['日'] === String(day) || (r['日'] === '末日' && day === last);
+      if (r['何曜日'] !== wd) return false;
+      if (r['第何週'] === '最終週') return day + 7 > last;
+      var w = Number(String(r['第何週'] || '').replace(/[^0-9]/g, ''));
+      return w >= 1 && day > (w - 1) * 7 && day <= w * 7;
+    }
+    if (r['単位'] === '年') {
+      if (base === null) return false;
+      var b2 = new Date(base * 86400000);
+      return b2.getUTCMonth() + 1 === m && b2.getUTCDate() === day && (y - b2.getUTCFullYear()) % k === 0;
+    }
+    return false;
+  }
+  // 定例の「次はいつか」（今日から1年先まで）
+  function nextOf(r) {
+    if (r['有効'] !== '○') return '';
+    var t = ymdN(today());
+    for (var i = 0; i <= 400; i++) if (occurs(r, t + i)) return nToYmd(t + i);
+    return '';
+  }
+  function allItems() {
+    var t = today(), items = [];
+    (S.data['タスク台帳'] || []).forEach(function (r) {
+      items.push({ sheet: 'タスク台帳', kind: 'やること', r: r, pri: priOf(r), date: r['期限'] || '', over: r['状態'] === '完了' });
     });
-    var html = '<div class="filter">' + filters.map(function (f) { return '<button data-f="' + f + '" class="' + (f === S.taskFilter ? 'on' : '') + '">' + f + '</button>'; }).join('') + '</div>';
-    if (!rows.length) html += emptyBox('ここに入るタスクはありません。');
-    rows.forEach(function (r) {
+    (S.data['イレギュラー'] || []).forEach(function (r) {
+      items.push({ sheet: 'イレギュラー', kind: '予定', r: r, pri: '普通', date: r['日付'] || '', over: (r['終了日'] || r['日付'] || '') < t });
+    });
+    (S.data['定例'] || []).forEach(function (r) {
+      items.push({ sheet: '定例', kind: '定例', r: r, pri: '普通', date: nextOf(r), over: false });
+    });
+    return items;
+  }
+  function itemCard(x) {
+    var r = x.r, html;
+    if (x.kind === 'やること') {
       var n = daysLeft(r['期限']);
       var due = r['期限'] ? (n < 0 ? '<span class="chip warn">期限切れ ' + md(r['期限']) + '</span>' : n <= 3 ? '<span class="chip amber">期限 ' + md(r['期限']) + '</span>' : '<span class="chip gray">期限 ' + md(r['期限']) + '</span>') : '';
-      html += '<div class="card item" data-id="' + esc(r.ID) + '">' +
-        '<div class="t">' + (r['緊急'] === '○' ? '<span class="chip warn">緊急</span>' : '') + esc(r['タスク']) + '</div>' +
+      html = '<div class="kd">単発のやること</div>' +
+        '<div class="t">' + (x.pri === '最優先' ? '<span class="chip warn">最優先</span>' : x.pri === '優先' ? '<span class="chip amber">優先</span>' : '') + esc(r['タスク']) + '</div>' +
         '<div class="m"><span class="chip ' + (STATE_CHIP[r['状態']] || '') + '">' + esc(r['状態'] || '未着手') + '</span>' + due +
         (r['カテゴリ'] ? '<span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + (r['仕事名'] ? esc(r['仕事名']) : '') + '</div>' +
-        (r['次にやること'] ? '<div class="m">次：' + esc(r['次にやること']) + '</div>' : '') + remindLine(r) + '</div>';
+        (r['次にやること'] ? '<div class="m">次：' + esc(r['次にやること']) + '</div>' : '');
+    } else if (x.kind === '予定') {
+      var chip = r['種類'] === 'この日は定例をお休み' ? 'warn' : r['種類'] === 'この日だけ定例を止める' ? 'amber' : '';
+      var d = md(r['日付']) + (r['終了日'] && r['終了日'] !== r['日付'] ? '〜' + md(r['終了日']) : '');
+      var tm = (r['開始'] || '') + (r['終了'] ? '〜' + r['終了'] : '');
+      html = '<div class="kd">単発の予定' + (r['種類'] && r['種類'] !== '予定' ? '（' + esc(r['種類']) + '）' : '') + '</div>' +
+        '<div class="t">' + esc(r['内容'] || '（内容なし）') + '</div>' +
+        '<div class="m">' + esc(d) + (tm ? ' ' + esc(tm) : '') + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + (chip ? ' <span class="chip ' + chip + '">' + esc(r['種類']) + '</span>' : '') +
+        (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + (x.over ? ' <span class="chip gray">過ぎた予定</span>' : '') + '</div>';
+    } else {
+      html = '<div class="kd">定例・' + esc(ruleText(r)) + (r['有効'] === '○' ? '' : ' <span class="chip gray">お休み中</span>') + '</div>' +
+        '<div class="t">' + (r['種類'] === '時間の確保' ? '<span class="chip">時間の確保</span>' : '') + esc(r['内容']) + '</div>' +
+        '<div class="m">' + esc(span(r)) + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') +
+        (x.date ? ' <span class="chip gray">次は ' + md(x.date) + '</span>' : '') + '</div>';
+    }
+    return '<div class="card item" data-sheet="' + x.sheet + '" data-id="' + esc(r.ID) + '" style="' + (x.over || (x.kind === '定例' && r['有効'] !== '○') ? 'opacity:.55' : '') + '">' + html + remindLine(r) + '</div>';
+  }
+  function viewTasks() {
+    var filters = ['すべて', '未完了', '最優先', '途中', '止まっている', 'お返事待ち', '未着手', '完了'];
+    var f = S.taskFilter;
+    var rows = allItems().filter(function (x) {
+      if (f === 'すべて') return true;
+      if (f === '未完了') return !x.over;
+      if (x.kind !== 'やること') return false;
+      if (f === '最優先') return x.pri === '最優先' && !x.over;
+      return (x.r['状態'] || '未着手') === f;
+    }).sort(function (a, b) {
+      return (a.over - b.over) || (PRI[a.pri] - PRI[b.pri]) || (a.date || '9999').localeCompare(b.date || '9999') || (a.r['開始'] || '99').localeCompare(b.r['開始'] || '99');
     });
+    var html = '<div class="filter">' + filters.map(function (x) { return '<button data-f="' + x + '" class="' + (x === f ? 'on' : '') + '">' + x + '</button>'; }).join('') + '</div>';
+    if (!rows.length) html += emptyBox('ここに入るものはありません。');
+    rows.forEach(function (x) { html += itemCard(x); });
     app.innerHTML = html;
     app.querySelector('.filter').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.taskFilter = b.dataset.f; viewTasks(); };
-    bindItems('タスク台帳'); bindPcAdd();
+    bindItems(); bindPcAdd();
+  }
+  // 「＋」：どれを追加するか選んでもらう
+  function chooseAdd() {
+    openModal('<h3>何を追加しますか？</h3><div class="actions">' +
+      '<button class="btn sec" data-r="イレギュラー">単発の予定<br><small style="font-weight:400">急な予定・会議（日付・時刻・場所）</small></button>' +
+      '<button class="btn sec" data-r="タスク台帳">単発のやること<br><small style="font-weight:400">期限・状態・優先度</small></button>' +
+      '<button class="btn sec" data-r="定例">定例<br><small style="font-weight:400">毎週月曜・隔週・毎月第3土曜など</small></button>' +
+      '<button class="btn sec" id="caNo" style="border-color:var(--line);color:var(--sub)">やめる</button></div>');
+    [].forEach.call(document.querySelectorAll('#sheet [data-r]'), function (b) { b.onclick = function () { openEditor(b.dataset.r, null); }; });
+    document.getElementById('caNo').onclick = closeModal;
   }
 
-  // ---------- 定例（くり返しの決め方はGoogleカレンダーの「カスタム」と同じ） ----------
+  // 定例のカードの上に出す「毎週 月曜」「隔週 木曜」「毎月 第3土曜」などの文字
   var WDS = ['月', '火', '水', '木', '金', '土', '日'];
-  // カードのいちばん上に出す「毎週 月曜」「隔週 木曜」「毎月 第3土曜」などの文字
   function ruleText(r) {
     var k = Math.max(1, Math.floor(Number(r['間隔']) || 1)), u = r['単位'], t = '';
     var bp = String(r['開始日'] || '').split('-');
@@ -596,46 +819,6 @@
     } else if (u === '年') t = (k === 1 ? '毎年' : k + '年ごと') + (bp.length === 3 ? ' ' + Number(bp[1]) + '月' + Number(bp[2]) + '日' : '');
     if (r['終了日']) t += '（' + md(r['終了日']) + 'まで）';
     return t;
-  }
-  function viewRoutine() {
-    var UO = { '日': 0, '週': 1, 'か月': 2, '年': 3 };
-    var firstDay = function (r) { for (var i = 0; i < 7; i++) if (String(r['曜日'] || '').indexOf(WDS[i]) >= 0) return i; return 9; };
-    var rows = (S.data['定例'] || []).slice().sort(function (a, b) {
-      return (UO[a['単位']] - UO[b['単位']]) || (firstDay(a) - firstDay(b)) || (a['開始'] || '99').localeCompare(b['開始'] || '99');
-    });
-    var html = '<p class="note" style="margin-top:0">「毎週 月曜」「隔週 木曜」「毎月 第3土曜」など、くり返しの予定を入れます。</p>';
-    if (!rows.length) html += emptyBox('まだありません。');
-    rows.forEach(function (r) {
-      html += '<div class="card item" data-id="' + esc(r.ID) + '" style="' + (r['有効'] === '○' ? '' : 'opacity:.5') + '">' +
-        '<div style="font-size:13px;font-weight:700;color:var(--main)">' + esc(ruleText(r)) + (r['有効'] === '○' ? '' : ' <span class="chip gray">お休み中</span>') + '</div>' +
-        '<div class="t">' + (r['種類'] === '時間の確保' ? '<span class="chip">時間の確保</span>' : '') + esc(r['内容']) + '</div>' +
-        '<div class="m">' + esc(span(r)) + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + (r['カテゴリ'] ? ' <span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + '</div>' +
-        remindLine(r) + '</div>';
-    });
-    app.innerHTML = html;
-    bindItems('定例'); bindPcAdd();
-  }
-
-  // ---------- 単発（シート名はイレギュラー） ----------
-  function viewIrregular() {
-    var t = today();
-    var rows = (S.data['イレギュラー'] || []).slice().sort(function (a, b) { return (a['日付'] || '').localeCompare(b['日付'] || '') || (a['開始'] || '').localeCompare(b['開始'] || ''); });
-    var endOf = function (r) { return r['終了日'] || r['日付'] || ''; };
-    var future = rows.filter(function (r) { return endOf(r) >= t; }), past = rows.filter(function (r) { return endOf(r) < t; });
-    var html = '<p class="note">急に入った予定や会議を入れます。いつもの定例を、その日だけ止めたり、お休みにしたりもできます。</p>';
-    function card(r) {
-      var chip = r['種類'] === 'この日は定例をお休み' ? 'warn' : r['種類'] === 'この日だけ定例を止める' ? 'amber' : '';
-      var d = md(r['日付']) + (r['終了日'] && r['終了日'] !== r['日付'] ? '〜' + md(r['終了日']) : '');
-      var tm = (r['開始'] || '') + (r['終了'] ? '〜' + r['終了'] : '');
-      return '<div class="card item" data-id="' + esc(r.ID) + '"><div class="t">' + esc(r['内容'] || '（内容なし）') + '</div>' +
-        '<div class="m">' + esc(d) + (tm ? ' ' + esc(tm) : '') + (r['場所'] ? '（' + esc(r['場所']) + '）' : '') + ' <span class="chip ' + chip + '">' + esc(r['種類']) + '</span>' +
-        (r['カテゴリ'] ? '<span class="chip gray">' + esc(r['カテゴリ']) + '</span>' : '') + '</div>' + remindLine(r) + '</div>';
-    }
-    if (!future.length) html += emptyBox('これからの単発の予定はありません。');
-    future.forEach(function (r) { html += card(r); });
-    if (past.length) { html += '<h2>過ぎたもの</h2>'; past.reverse().slice(0, 20).forEach(function (r) { html += card(r); }); }
-    app.innerHTML = html;
-    bindItems('イレギュラー'); bindPcAdd();
   }
 
   function bindItems(sheet) {
@@ -923,6 +1106,26 @@
   }
 
   // ---------- 起動 ----------
+  // 開いたときの画面：文字が1字ずつ出て、ロゴがはねて出る。タップで中へ
+  (function splash() {
+    var sp = document.getElementById('splash'), s1 = sp.querySelector('.s1'), s2 = sp.querySelector('.s2'), logo = sp.querySelector('.logo'), tap = sp.querySelector('.tap');
+    var a = 'LINEで届く', b = 'あなたの秘書', i = 0, ready = false;
+    var cur = '<span class="cur"></span>';
+    var tick = setInterval(function () {
+      i++;
+      if (i <= a.length) s1.innerHTML = esc(a.slice(0, i)) + cur;
+      else if (i <= a.length + b.length) { s1.textContent = a; s2.innerHTML = esc(b.slice(0, i - a.length)) + cur; }
+      else { clearInterval(tick); s2.textContent = b; logo.classList.add('pop'); setTimeout(function () { tap.classList.add('on'); ready = true; }, 550); }
+    }, 85);
+    sp.onclick = function () {
+      if (!ready) { clearInterval(tick); s1.textContent = a; s2.textContent = b; logo.classList.add('pop'); tap.classList.add('on'); ready = true; return; }
+      if (sp.dataset.done) return; sp.dataset.done = '1';
+      logo.classList.remove('pop'); logo.style.transform = 'scale(1)'; logo.classList.add('press');
+      setTimeout(function () { sp.classList.add('out'); }, 380);
+      setTimeout(function () { sp.style.display = 'none'; }, 760);
+    };
+  })();
+
   S.conn = loadConn();
   if (!S.conn || !S.conn.id) renderLogin();
   else doLogin({ id: S.conn.id, pw: S.conn.pw }).catch(function (e) { renderLogin('自動でログインできませんでした：' + e.message); });
