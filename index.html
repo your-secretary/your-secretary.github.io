@@ -181,7 +181,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.015';
+  var SITE_VERSION = '1.1.016';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -1167,11 +1167,11 @@
         lw.style.transform = 'translateY(' + dy0 + 'px)';
         // はずんで上へ：いったん縦にのびて、まん丸に落ち着く。位置は5%上（ロゴの中心）へ
         go(logo, [{ width: w0 + 'px', height: h0 + 'px', borderRadius: h0 / 2 + 'px' },
-                  { width: '13px', height: '24px', borderRadius: '12px', offset: .45 },
-                  { width: d + 'px', height: d + 'px', borderRadius: d / 2 + 'px' }], { duration: 380, easing: 'cubic-bezier(.3,.7,.3,1)' });
-        go(lw, [{ transform: 'translateY(' + dy0 + 'px)' }, { transform: 'translateY(' + (-Math.round(W * 0.025)) + 'px)', offset: .55 }, { transform: 'translateY(0px)' }],
-          { duration: 380, easing: 'cubic-bezier(.3,.7,.3,1)' });
-        at(400, function () {                                                   // まん丸が、縦横そろって広がりながら正方形に
+                  { width: '16px', height: '21px', borderRadius: '10px', offset: .5 },
+                  { width: d + 'px', height: d + 'px', borderRadius: d / 2 + 'px' }], { duration: 950, easing: 'cubic-bezier(.4,0,.25,1)' });
+        go(lw, [{ transform: 'translateY(' + dy0 + 'px)' }, { transform: 'translateY(0px)' }],      // ゆっくり5%上（ロゴの中心）へ
+          { duration: 950, easing: 'cubic-bezier(.4,0,.25,1)' });
+        at(1100, function () {                                                   // まん丸が、縦横そろって広がりながら正方形に
           go(logo, [{ width: d + 'px', height: d + 'px', borderRadius: d / 2 + 'px' },
                     { width: Math.round(W * 1.04) + 'px', height: Math.round(W * 1.04) + 'px', borderRadius: Math.round(R * 1.04) + 'px', offset: .72 },
                     { width: W + 'px', height: W + 'px', borderRadius: R + 'px' }], { duration: 700, easing: 'cubic-bezier(.33,.9,.36,1)' });
