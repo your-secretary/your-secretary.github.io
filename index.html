@@ -181,7 +181,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.016';
+  var SITE_VERSION = '1.1.017';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -1202,8 +1202,13 @@
       })(t0);
     });
     sp.onclick = function () {
-      if (!ready) { finalState(); return; }                                       // 途中で押したら、最後の形まで進める
       if (done) return; done = true;
+      if (!ready) {                                                               // 動きの途中で押したら、そのままパッとホーム画面へ
+        timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf);
+        sp.style.transition = 'opacity .15s ease'; sp.classList.add('out');
+        setTimeout(function () { sp.style.display = 'none'; anims.forEach(function (a) { try { a.cancel(); } catch (e) {} }); }, 170);
+        return;
+      }
       logo.animate([{ transform: 'scale(1)' }, { transform: 'scale(.93)', offset: .3 }, { transform: 'scale(1.03)', offset: .65 }, { transform: 'scale(1)' }],
         { duration: 460, easing: 'ease-out', fill: 'forwards' });
       setTimeout(function () { sp.classList.add('out'); }, 400);
