@@ -199,7 +199,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.023';
+  var SITE_VERSION = '1.1.024';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: 'すべて', quota: null };
@@ -387,8 +387,9 @@
       if (!n || !m || !b) { toast('お名前・メールアドレス・内容を入れてください', true); return; }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m)) { toast('メールアドレスの形がちがうようです', true); return; }
       var btn = this; busy(btn, true, '送っています…');
-      adminApi('inquiry', { name: n, mail: m, body: b, images: imgs }, S.conn || { id: '', pw: '' }).then(function () {
+      adminApi('inquiry', { name: n, mail: m, body: b, images: imgs }, S.conn || { id: '', pw: '' }).then(function (k) {
         openModal('<h3>送りました</h3><p>お問い合わせを受け付けました。担当が確認します。</p>' +
+          (k.mailed ? '<p class="note">受け付けたことを、' + esc(m) + ' にメールでお知らせしました。お返事もメールで届きます。</p>' : '') +
           (S.conn ? '<p class="note">お返事は、この設定サイトの画面の上に「お問い合わせのお返事が来ています」と出ます。</p>' : '') + '<div class="actions"><button class="btn" id="iqOk">閉じる</button></div>');
         document.getElementById('iqOk').onclick = closeModal;
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
@@ -794,9 +795,13 @@
         '<p class="note">いまはLINEの中で開いています。上のボタンを押すと、Safari（iPhone）・Chrome（Android）で開き直します。</p>'
         : '<ul style="padding-left:1.3em;margin:4px 0"><li><b>LINE</b>：LINEの中で開いているときは、ここに「Safari・Chromeで開き直す」ボタンが出ます。押すと開き直せます</li>' +
           '<li><b>メールなど</b>：画面の上か下にある「Safariで開く」「ブラウザで開く」「Chromeで開く」（方位磁針のマークのこともあります）を押します</li></ul>') +
-      '<h2 style="margin-top:10px">iPhoneのとき</h2><ol style="padding-left:1.3em;margin:4px 0">' +
+      '<h2 style="margin-top:10px">iPhone（iOS 26 以降）のとき</h2><ol style="padding-left:1.3em;margin:4px 0">' +
+      '<li>このサイトを <b>Safari</b> で開きます</li><li>画面右下の <b>「…」</b>（その他の操作）を押します</li>' +
+      '<li><b>「共有」</b>→<b>「その他」</b>→<b>「ホーム画面に追加」</b>を押し、右上の<b>「追加」</b>を押します</li></ol>' +
+      '<h2>iPhone（iOS 18 以前）のとき</h2><ol style="padding-left:1.3em;margin:4px 0">' +
       '<li>このサイトを <b>Safari</b> で開きます</li><li>画面の下（または上）の <b>共有ボタン</b>（四角から上向きの矢印）を押します</li>' +
       '<li><b>「ホーム画面に追加」</b>を押し、右上の<b>「追加」</b>を押します</li></ol>' +
+      '<p class="note">iOSのバージョンは「設定」→「一般」→「情報」の「iOSバージョン」で分かります（18の次が26です）。</p>' +
       '<h2>Androidのとき</h2><ol style="padding-left:1.3em;margin:4px 0">' +
       '<li>このサイトを <b>Chrome</b> で開きます</li><li>右上の <b>「⋮」</b>（縦に点が3つ）を押します</li>' +
       '<li><b>「ホーム画面に追加」</b>（または「アプリをインストール」）を押し、<b>「追加」</b>（または「インストール」）を押します</li></ol>' +
@@ -1308,7 +1313,7 @@
           var card = b.closest('[data-no]'), text = card.querySelector('.iqText').value.trim();
           if (!text) { toast('返信の文を入れてください', true); return; }
           busy(b, true, '送っています…');
-          withBusy(adminApi('inquiryReply', { no: card.dataset.no, text: text })).then(function () { toast('返信を送りました'); loadInquiries(); })
+          withBusy(adminApi('inquiryReply', { no: card.dataset.no, text: text })).then(function (k) { toast(k.mailed === undefined ? '返信を送りました' : k.mailed ? '返信を送りました（メールでも送りました）' : '返信を送りました（メールは送れませんでした）', k.mailed === false); loadInquiries(); })
             .catch(function (e) { busy(b, false); toast(e.message, true); });
         };
       });
@@ -1324,10 +1329,11 @@
 
   // 返信の欄（サイトで届けられるのは、ログインして送ってくれた人だけ）
   function replyBlock(x) {
-    var id = String(x['利用者ID'] || ''), can = id && id.indexOf('（') < 0;
+    var id = String(x['利用者ID'] || ''), site = id && id.indexOf('（') < 0;
     var done = x['返信'] ? '<div class="reply"><div class="rh">送った返信（' + esc(x['返信日']) + '）' + (x['返信を読んだ日'] ? '・相手が読みました（' + esc(x['返信を読んだ日']) + '）' : '・まだ読まれていません') + '</div>' + esc(x['返信']) + '</div>' : '';
-    if (!can) return done + '<p class="note" style="margin:10px 0 0">ログインしていない方（または利用者IDを確かめられない方）からのお問い合わせです。サイトではお返事を届けられないので、メールでお返事してください。</p>';
-    return done + '<label class="f" style="margin-top:10px">' + (x['返信'] ? '返信を送り直す' : '返信') + '</label><textarea class="iqText" style="width:100%;min-height:90px;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;border:1px solid #cfd6d0;border-radius:10px"></textarea>' +
+    return done + '<label class="f" style="margin-top:10px">' + (x['返信'] ? '返信を送り直す' : '返信') + '</label>' +
+      '<p class="note" style="margin:0 0 4px">' + (site ? 'お返事は、この方の設定サイトとメール（' + esc(x['メールアドレス']) + '）の両方に届きます。'
+        : 'ログインしていない方（または利用者IDを確かめられない方）なので、お返事はメール（' + esc(x['メールアドレス']) + '）だけに届きます。') + '</p>' + '<textarea class="iqText" style="width:100%;min-height:90px;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;border:1px solid #cfd6d0;border-radius:10px"></textarea>' +
       '<div style="margin-top:6px"><button class="btn slim iqSend">返信を送る</button></div>';
   }
 

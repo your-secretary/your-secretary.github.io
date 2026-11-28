@@ -63,9 +63,10 @@
     <li><a href="#s1">秘書用のLINE公式アカウントを作る</a></li>
     <li><a href="#s2">Messaging API（メッセージを自動で送る仕組み）を使えるようにする</a></li>
     <li><a href="#s3">スプレッドシートのひな形をコピーして、動くようにする</a></li>
-    <li><a href="#s4">設定サイトにログインして、スプレッドシートとつなぐ</a></li>
-    <li><a href="#s5">LINEとつなぐ</a></li>
-    <li><a href="#s6">「はじめにやること」の項目を順番に進める</a></li>
+    <li><a href="#s4">設定サイトにログインして、スマホのホーム画面に追加する</a></li>
+    <li><a href="#s5">スプレッドシートとつなぐ</a></li>
+    <li><a href="#s6">LINEとつなぐ</a></li>
+    <li><a href="#s7">「はじめにやること」の項目を順番に進める</a></li>
   </ol>
   <p class="note" style="margin-bottom:0">英語の画面が出てくるところは、<span class="en">英語の文字</span>と、その意味をいっしょに書いています。</p>
 </div>
@@ -148,20 +149,58 @@
 </div>
 
 <!-- ───────── 4 ───────── -->
-<h2 id="s4"><span class="no">4</span>設定サイトにログインして、スプレッドシートとつなぐ</h2>
-<a class="btn" href="./" target="_blank" rel="noopener">設定サイトを開く</a>
+<h2 id="s4"><span class="no">4</span>設定サイトにログインして、スマホのホーム画面に追加する</h2>
+<p>ここは<b>スマホ</b>で進めます。ホーム画面に追加しておくと、次からはアプリのように1回タップで開けます。</p>
+<a class="btn" href="./?openExternalBrowser=1" target="_blank" rel="noopener">設定サイトを開く</a>
 <div class="card">
+  <h3 style="margin-top:0">4-1　ログインする</h3>
   <ol>
-    <li>購入後に届いた<b>利用者ID</b>と<b>初期パスワード</b>で、<b>「ログイン」</b>します。</li>
+    <li>開いたら「ログイン」を選び、購入後に届いた<b>利用者ID</b>と<b>初期パスワード</b>で<b>「ログイン」</b>します。</li>
     <li>はじめてのときは、あなた自身のパスワードに変えます（8文字以上）。新しいパスワードを2回入れて<b>「パスワードを変える」</b>を押します。</li>
-    <li>スプレッドシートとつなぐ画面で、手順3-3でコピーしたURLを貼り、<b>「つなぐ」</b>を押します。
-      <div class="tip">貼るのは「https://script.google.com/macros/s/…/exec」の形のURLです。スプレッドシートの画面のURL（docs.google.com…）ではありません。</div></li>
   </ol>
-  <p class="note" style="margin-bottom:0">つなぐと、設定サイトのホームの「はじめにやること」に、残りのやることが順番に出てきます。</p>
+  <p class="note" style="margin-bottom:0">パスワードを変えると「スプレッドシートとつなぐ」画面になります。その画面のまま、次の4-2に進んでかまいません。</p>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">4-2　スマホのホーム画面に追加する</h3>
+  <div class="tip"><b>LINEやメールから開いたとき</b>：LINE・メールなどのアプリの<b>中の画面</b>で開いていると、ホーム画面に追加できません。iPhoneは<b>Safari</b>、Androidは<b>Chrome</b>で開き直してください。上の「設定サイトを開く」ボタンをLINEの中で押すと、Safari・Chromeで開きます。</div>
+  <p style="margin-bottom:4px"><b>iPhone（iOS 26 以降）</b></p>
+  <ol>
+    <li>Safariで設定サイトを開きます。</li>
+    <li>画面右下の<b>「…」（その他の操作）</b>を押します。</li>
+    <li><b>「共有」</b>→<b>「その他」</b>→<b>「ホーム画面に追加」</b>の順に押します（見つからないときは、少し上にずらすと出ます）。</li>
+    <li>右上の<b>「追加」</b>を押します。</li>
+  </ol>
+  <p style="margin-bottom:4px"><b>iPhone（iOS 18 以前）</b></p>
+  <ol>
+    <li>Safariで設定サイトを開きます。</li>
+    <li>画面の下（または上）の<b>共有ボタン</b>（四角から上向きの矢印）を押します。</li>
+    <li><b>「ホーム画面に追加」</b>を押し、右上の<b>「追加」</b>を押します。</li>
+  </ol>
+  <p class="note">iOSのバージョンは、iPhoneの「設定」→「一般」→「情報」の<b>「iOSバージョン」</b>で分かります。iOSは18の次が26です（19〜25はありません）。</p>
+  <p style="margin-bottom:4px"><b>Android</b></p>
+  <ol>
+    <li>Chromeで設定サイトを開きます。</li>
+    <li>右上の<b>「⋮」</b>（縦に点が3つ）を押します。</li>
+    <li><b>「ホーム画面に追加」</b>（または「アプリをインストール」）を押し、<b>「追加」</b>（または「インストール」）を押します。</li>
+  </ol>
+  <p class="note" style="margin-bottom:0">ホーム画面から開いたときに、ログインの画面が出ることがあります。そのときは、同じ利用者IDと、変えたあとのパスワードでログインしてください。</p>
 </div>
 
 <!-- ───────── 5 ───────── -->
-<h2 id="s5"><span class="no">5</span>LINEとつなぐ</h2>
+<h2 id="s5"><span class="no">5</span>スプレッドシートとつなぐ</h2>
+<p>手順3-3でコピーしたURLを貼るので、<b>パソコン</b>で進めるのがかんたんです。</p>
+<a class="btn" href="./" target="_blank" rel="noopener">設定サイトを開く（パソコン）</a>
+<div class="card">
+  <ol>
+    <li>パソコンで設定サイトを開き、同じ利用者IDと、変えたあとのパスワードでログインします。</li>
+    <li>スプレッドシートとつなぐ画面で、手順3-3でコピーしたURLを貼り、<b>「つなぐ」</b>を押します。
+      <div class="tip">貼るのは「https://script.google.com/macros/s/…/exec」の形のURLです。スプレッドシートの画面のURL（docs.google.com…）ではありません。</div></li>
+  </ol>
+  <p class="note" style="margin-bottom:0">つなぐと、設定サイトのホームの「はじめにやること」に、残りのやることが順番に出てきます。スマホのほうも、開き直すと同じ状態になります。</p>
+</div>
+
+<!-- ───────── 6 ───────── -->
+<h2 id="s6"><span class="no">6</span>LINEとつなぐ</h2>
 <p>設定サイトのホームの「はじめにやること」で<b>「LINEとつなぐ」</b>を押すと、LINEの情報を入れる欄が開きます。入れる値は、LINE Developers（開発者用の画面）からコピーします。</p>
 <a class="btn sec" href="https://developers.line.biz/console/" target="_blank" rel="noopener">LINE Developersを開く</a>
 <div class="card">
@@ -184,8 +223,8 @@
   <p class="note" style="margin-bottom:0">入れた値は、あなたのスプレッドシートのプログラムの中にだけ保存されます。</p>
 </div>
 
-<!-- ───────── 6 ───────── -->
-<h2 id="s6"><span class="no">6</span>「はじめにやること」の項目を順番に進める</h2>
+<!-- ───────── 7 ───────── -->
+<h2 id="s7"><span class="no">7</span>「はじめにやること」の項目を順番に進める</h2>
 <div class="card">
   <p style="margin-top:0">あとは、設定サイトのホームにある<b>「はじめにやること」</b>の項目を、順番に進めるだけです。</p>
   <ol>
@@ -193,6 +232,7 @@
     <li><b>予定やタスクを入れる</b>：「定例」（毎週月曜・隔週・毎月第3土曜など）、「単発」（急な予定・会議）、「タスク」を入れます。</li>
     <li><b>LINE送信確認</b>：ちゃんと届くかを確かめます。押す前に確認が出ます。</li>
   </ol>
+  <p class="note">最後の「スマホのホーム画面に追加する」は、手順4で追加したホーム画面のアイコンから一度開くと、自動で終わりになります。</p>
   <p>Googleカレンダーの予定も入れたいときは、⚙設定 →「全体の設定」→「Googleカレンダーの連携」で、入れたいカレンダーにチェックを入れて保存します。</p>
 </div>
 
@@ -207,7 +247,7 @@
 </details>
 
 <a class="btn" href="./">設定サイトへ</a>
-<p class="note" style="text-align:center">はじめての方へ 1.1.002</p>
+<p class="note" style="text-align:center">はじめての方へ 1.1.003</p>
 </main>
 </body>
 </html>
