@@ -119,7 +119,7 @@
   #splash .band { position: absolute; left: 0; right: 0; top: 0; height: calc(56px + env(safe-area-inset-top)); background: var(--main); transform: scaleX(0); transform-origin: left; }
   #splash .line { position: absolute; left: 50%; width: 2px; margin-left: -1px; height: 0; background: var(--main); border-radius: 1px; }
   #splash .drop { position: absolute; left: 50%; top: 0; width: 14px; height: 20px; margin-left: -7px; fill: var(--main); opacity: 0; transform-origin: 50% 0; overflow: visible; }
-  #splash .lw { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: flex-end; pointer-events: none; }
+  #splash .lw { position: absolute; left: 50%; width: 0; height: 0; display: flex; justify-content: center; align-items: center; pointer-events: none; }
   #splash .logo { flex: none; width: 0; height: 0; background: var(--main); display: flex; align-items: center; justify-content: center; overflow: hidden;
     color: #fff; font-family: 'SplashFont', 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif; font-weight: 700; box-shadow: 0 18px 40px rgba(31,138,76,0); }
   #splash .logo .in { display: flex; flex-direction: column; align-items: center; }
@@ -181,7 +181,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.014';
+  var SITE_VERSION = '1.1.015';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -1112,7 +1112,8 @@
   // 開いたときの画面
   //   緑の帯 → 帯のまん中から細い線が落ちていく。止まらずに、落ちながら先に雨だれができてふくらむ
   //   → 雨だれだけが離れて落ち続け、離れた瞬間に線は消える → 落ちるほど速く・縦長に
-  //   → 地面（ロゴの下の辺）に着いてつぶれる → 少し止まる → 水たまりのように横に広がる → 上に立ち上がって正方形のロゴになる
+  //   → ロゴの中心より5%下に着いてつぶれる → 少し止まる → はずんで、まん丸になって5%上（ロゴの中心）に戻る
+  //   → まん丸が縦横そろって広がりながら、角の丸い正方形になる
   //   → 白い文字が1字ずつ打たれる → タップで中へ
   (function splash() {
     var sp = document.getElementById('splash'), band = sp.querySelector('.band'), line = sp.querySelector('.line'), drop = sp.querySelector('.drop'),
@@ -1122,13 +1123,13 @@
     var vw = window.innerWidth, vh = window.innerHeight, bandB = band.getBoundingClientRect().height;
     var W = Math.round(Math.min(vw * 0.56, 232, (vh - bandB) * 0.5));          // 正方形のロゴの一辺
     var Yc = Math.round(bandB + (vh - bandB) * 0.45);                        // ロゴのまん中
-    var G = Yc + Math.round(W / 2);                                          // 地面（ロゴの下の辺）＝しずくの着地点
+    var G = Yc + Math.round(W * 0.05);                                       // しずくの着地点（ロゴの中心より5%下）
     var DH = 20, R = Math.round(W * 0.23);                                   // しずくの高さ、ロゴの角の丸み
     s1.style.fontSize = Math.round(W * 0.064) + 'px'; s2.style.fontSize = Math.round(W * 0.128) + 'px'; s3.style.fontSize = Math.round(W * 0.056) + 'px';
     rule.style.margin = Math.round(W * 0.05) + 'px 0 ' + Math.round(W * 0.045) + 'px';
-    lw.style.top = (G - W * 1.2) + 'px'; lw.style.height = (W * 1.2) + 'px';
+    lw.style.top = Yc + 'px';
     line.style.top = bandB + 'px';
-    tap.style.top = (G + 34) + 'px';
+    tap.style.top = (Yc + W / 2 + 34) + 'px';
     var anims = [], timers = [], raf = 0, ready = false, done = false;
     var at = function (ms, fn) { timers.push(setTimeout(fn, ms)); };
     var go = function (el, frames, opt) { var a = el.animate(frames, Object.assign({ fill: 'forwards' }, opt)); anims.push(a); return a; };
@@ -1154,24 +1155,28 @@
       setLogo(W, W, R); logo.style.boxShadow = '0 18px 40px rgba(31,138,76,.22)'; rule.style.transform = 'scaleX(1)';
       s1.textContent = A; s2.textContent = B; s3.textContent = C; tap.classList.add('on'); ready = true;
     }
-    // 着地してから：つぶれる → 少し止まる → 横に広がる → 立ち上がって正方形
+    // 着地してから：つぶれる → 少し止まる → はずんで、まん丸になって中心に戻る → 縦横そろって広がり、正方形に
     function land(sx, sy) {
       var base = 'translate(0px, ' + (G - DH) + 'px) ';
       drop.style.transformOrigin = '50% 100%';
       go(drop, [{ transform: base + 'scale(' + sx + ',' + sy + ')' }, { transform: base + 'scale(1.9, .32)' }], { duration: 110, easing: 'cubic-bezier(.2,.8,.3,1)' });
-      at(190, function () {                                                     // 少し止まってから、つぶれたしずくがそのまま水たまりになる
+      at(250, function () {                                                     // 少し止まってから、はずむ
         drop.style.opacity = '0';
-        var w0 = 27, h0 = 6;
+        var w0 = 27, h0 = 6, d = 18, dy0 = G - h0 / 2 - Yc;                     // つぶれた形のまん中は、ロゴの中心より少し下
         setLogo(w0, h0, h0 / 2);
-        var hp = Math.max(8, Math.round(W * 0.09));
-        go(logo, [{ width: w0 + 'px', height: h0 + 'px', borderRadius: h0 / 2 + 'px' }, { width: W + 'px', height: hp + 'px', borderRadius: hp / 2 + 'px' }],
-          { duration: 320, easing: 'cubic-bezier(.3,.7,.2,1)' });
-        at(210, function () {                                                   // 広がりきる少し前から、そのまま立ち上がる
-          go(logo, [{ width: W + 'px', height: hp + 'px', borderRadius: hp / 2 + 'px' },
-                    { width: W + 'px', height: Math.round(W * 1.05) + 'px', borderRadius: R + 'px', offset: .7 },
-                    { width: W + 'px', height: W + 'px', borderRadius: R + 'px' }], { duration: 600, easing: 'cubic-bezier(.3,.9,.35,1)' });
+        lw.style.transform = 'translateY(' + dy0 + 'px)';
+        // はずんで上へ：いったん縦にのびて、まん丸に落ち着く。位置は5%上（ロゴの中心）へ
+        go(logo, [{ width: w0 + 'px', height: h0 + 'px', borderRadius: h0 / 2 + 'px' },
+                  { width: '13px', height: '24px', borderRadius: '12px', offset: .45 },
+                  { width: d + 'px', height: d + 'px', borderRadius: d / 2 + 'px' }], { duration: 380, easing: 'cubic-bezier(.3,.7,.3,1)' });
+        go(lw, [{ transform: 'translateY(' + dy0 + 'px)' }, { transform: 'translateY(' + (-Math.round(W * 0.025)) + 'px)', offset: .55 }, { transform: 'translateY(0px)' }],
+          { duration: 380, easing: 'cubic-bezier(.3,.7,.3,1)' });
+        at(400, function () {                                                   // まん丸が、縦横そろって広がりながら正方形に
+          go(logo, [{ width: d + 'px', height: d + 'px', borderRadius: d / 2 + 'px' },
+                    { width: Math.round(W * 1.04) + 'px', height: Math.round(W * 1.04) + 'px', borderRadius: Math.round(R * 1.04) + 'px', offset: .72 },
+                    { width: W + 'px', height: W + 'px', borderRadius: R + 'px' }], { duration: 700, easing: 'cubic-bezier(.33,.9,.36,1)' });
           go(logo, [{ boxShadow: '0 18px 40px rgba(31,138,76,0)' }, { boxShadow: '0 18px 40px rgba(31,138,76,.22)' }], { delay: 300, duration: 800, easing: 'ease' });
-          at(560, type);
+          at(620, type);
         });
       });
     }
