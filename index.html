@@ -125,7 +125,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.008';
+  var SITE_VERSION = '1.1.009';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -202,7 +202,8 @@
       '<label class="f">利用者ID</label><input type="text" id="lgId" autocomplete="username" autocapitalize="off">' +
       '<label class="f">パスワード</label><input type="password" id="lgPw" autocomplete="current-password">' +
       '<p class="note">利用者IDと最初のパスワードは、ご購入のときにお知らせしたものです。この端末にはログインした状態が残ります。</p>' +
-      '<button class="btn" id="lgGo">ログイン</button></div>' + verLine();
+      '<button class="btn" id="lgGo">ログイン</button></div>' +
+      '<a class="btn sec" href="guide.html" style="display:block;text-align:center;text-decoration:none">はじめての方へ（使えるようになるまでの手順）</a>' + verLine();
     document.getElementById('lgGo').onclick = function () {
       var id = document.getElementById('lgId').value.trim(), pw = document.getElementById('lgPw').value;
       if (!id || !pw) { toast('利用者IDとパスワードを入れてください', true); return; }
@@ -406,7 +407,8 @@
         return '<div class="step ' + cls + '"><div class="n">' + (x.done ? '✓' : (i + 1)) + '</div><div><div class="s">' + esc(x.t) + '</div>' +
           (x === now ? '<div class="d">' + esc(x.d) + '</div>' : '') + '</div></div>';
       }).join('') +
-      '<div style="margin-top:10px"><button class="btn" id="setupGo" data-go="' + now.go + '">' + esc(now.btn) + '</button></div></div>';
+      '<div style="margin-top:10px"><button class="btn" id="setupGo" data-go="' + now.go + '">' + esc(now.btn) + '</button></div>' +
+      '<p class="note" style="margin:8px 0 0;text-align:center"><a href="guide.html" target="_blank" rel="noopener" style="color:var(--main)">くわしい手順：はじめての方へ</a></p></div>';
   }
   // 「はじめにやること」の進み具合を顧客管理に知らせる（終わったかどうかだけ。変わったときだけ送る）
   function reportProgress() {

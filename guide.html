@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>はじめての方へ｜LINEで届く あなたの秘書</title>
+<style>
+  :root { --bg: #f5f6f4; --card: #fff; --ink: #1f2a24; --sub: #66736b; --line: #e2e6e2; --main: #1f8a4c; --main-soft: #e4f3ea; --warn: #c0392b; --warn-soft: #fbe9e7; --amber: #b7791f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif;
+    font-size: 16px; line-height: 1.75; -webkit-text-size-adjust: 100%; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--main); color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { margin: 0; font-size: 18px; line-height: 1.25; }
+  header h1 small { display: block; font-size: 11px; font-weight: 400; opacity: .9; }
+  header a { color: var(--main); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 700; text-decoration: none; }
+  main { padding: 14px 14px 60px; max-width: 680px; margin: 0 auto; }
+  h2 { font-size: 19px; margin: 30px 0 10px; padding-top: 6px; scroll-margin-top: 64px; }
+  h2 .no { display: inline-flex; width: 30px; height: 30px; border-radius: 50%; background: var(--main); color: #fff; align-items: center; justify-content: center; font-size: 15px; margin-right: 6px; vertical-align: 2px; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  ol, ul { padding-left: 1.4em; margin: 6px 0; }
+  li { margin: 4px 0; }
+  .btn { display: block; text-align: center; border-radius: 10px; background: var(--main); color: #fff; padding: 12px 16px; font-weight: 700; text-decoration: none; margin: 10px 0; }
+  .btn.sec { background: #fff; color: var(--main); border: 1px solid var(--main); }
+  .tip { background: var(--main-soft); border-radius: 10px; padding: 8px 12px; margin: 8px 0; font-size: 15px; overflow-wrap: anywhere; }
+  .warn { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 8px 12px; margin: 8px 0; font-size: 15px; }
+  .en { display: inline-block; font-family: inherit; background: #eef0ee; border-radius: 6px; padding: 0 6px; font-size: 14px; }
+  b.k { background: #fff6cf; padding: 0 3px; }
+  .toc a { color: var(--main); }
+  .note { color: var(--sub); font-size: 14px; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; }
+  details summary { font-weight: 700; cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  td, th { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f0f3f0; white-space: nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1><small>LINEで届く あなたの秘書</small>はじめての方へ</h1>
+  <a href="./">設定サイトへ</a>
+</header>
+<main>
+
+<div class="card">
+  <p style="margin-top:0">この案内のとおりに上から進めると、毎日決まった時刻に、あなた専用の秘書から今日（または明日）の予定とタスクがLINEで届くようになります。</p>
+  <p class="note" style="margin-bottom:0">予定やタスクの中身は、あなた自身のGoogleのスプレッドシートにだけ入ります。提供者が中身を見ることはありません。</p>
+</div>
+
+<h3>用意するもの</h3>
+<div class="card">
+  <ul>
+    <li><b>Googleアカウント</b>（Gmailのアカウント）</li>
+    <li><b>LINE</b>（いつも使っているLINEで大丈夫です）</li>
+    <li><b>パソコン</b>：この案内はパソコンで進める手順で書いています</li>
+    <li>提供者から届いた<b>利用者ID</b>と<b>最初のパスワード</b></li>
+  </ul>
+</div>
+
+<h3>全体の流れ</h3>
+<div class="card toc">
+  <ol>
+    <li><a href="#s1">秘書用のLINE公式アカウントを作る</a></li>
+    <li><a href="#s2">Messaging API（メッセージを自動で送る仕組み）を使えるようにする</a></li>
+    <li><a href="#s3">スプレッドシートのひな形をコピーして、動くようにする</a></li>
+    <li><a href="#s4">設定サイトにログインして、スプレッドシートとつなぐ</a></li>
+    <li><a href="#s5">LINEとつなぐ</a></li>
+    <li><a href="#s6">「初期確認」に出てくる順に進める</a></li>
+  </ol>
+  <p class="note" style="margin-bottom:0">英語の画面が出てくるところは、<span class="en">英語の文字</span>と、その意味をいっしょに書いています。</p>
+</div>
+
+<!-- ───────── 1 ───────── -->
+<h2 id="s1"><span class="no">1</span>秘書用のLINE公式アカウントを作る</h2>
+<p>あなたにLINEを送ってくれる「秘書」を、LINE公式アカウントとして新しく作ります。無料のプランで使います。</p>
+<a class="btn" href="https://entry.line.biz/start/jp/" target="_blank" rel="noopener">LINE公式アカウントを作る画面を開く</a>
+<div class="card">
+  <ol>
+    <li>「LINE公式アカウントを開設する」を選び、<b>LINEアカウントで登録</b>（いつものLINEでログイン）します。</li>
+    <li>作成の入力画面で、次のように選びます。
+      <table style="margin:6px 0">
+        <tr><th>アカウント名</th><td>例：「あなたの秘書」「〇〇の秘書」（あとで変えられます）</td></tr>
+        <tr><th>業種</th><td><b class="k">ウェブサービス</b> → <b class="k">その他</b></td></tr>
+        <tr><th>運用目的</th><td><b class="k">その他</b></td></tr>
+        <tr><th>主な使い方</th><td><b class="k">メッセージ配信</b></td></tr>
+      </table>
+    </li>
+    <li>「ビジネスマネージャーの組織との接続」という項目が出ることがあります。分かりにくいですが、<b>つながなくて大丈夫</b>です。</li>
+    <li>「認証済アカウント」の申請は、<b>「後で」</b>で大丈夫です（審査は必要ありません）。</li>
+    <li>情報の利用についての同意が<b>2つ</b>続けて出ます。内容を確かめて、どちらも同意して進みます。</li>
+    <li>作り終わると、あなたのLINEに、作った公式アカウントが<b>自動で友だち追加</b>されます。これで正しい状態です。</li>
+    <li>「運用を始める前に」という画面の2ページ目は、<b>ホーム画面へ</b>進んで大丈夫です。</li>
+  </ol>
+  <div class="tip">1つのアカウントで作れる公式アカウントは、最大100個までです。この秘書のために1つ作っても、ほかの公式アカウントには影響しません。</div>
+</div>
+
+<!-- ───────── 2 ───────── -->
+<h2 id="s2"><span class="no">2</span>Messaging APIを使えるようにする</h2>
+<p>スプレッドシートから秘書にメッセージを送らせるための設定です。手順1で作った公式アカウントの管理画面で行います。</p>
+<a class="btn" href="https://manager.line.biz/" target="_blank" rel="noopener">公式アカウントの管理画面を開く</a>
+<div class="card">
+  <ol>
+    <li>作った公式アカウントを選び、右上の<b>「設定」</b>→ 左の<b>「Messaging API」</b>→<b>「Messaging APIを利用する」</b>を押します。</li>
+    <li>「LINE Developersに登録する開発者情報」が出たら、<b>あなたの名前</b>と、<b>ふだん見ているメールアドレス</b>を入れます（LINEからのお知らせが届くアドレスです）。</li>
+    <li><b>プロバイダー</b>を作ります。プロバイダー名は <b class="k">あなたの秘書</b> にしてください。
+      <div class="tip">プロバイダー名を入れる画面が2回出てくるように見えることがありますが、同じ名前（あなたの秘書）で大丈夫です。</div></li>
+    <li>プライバシーポリシーと利用規約のURLは、<b>入れなくて大丈夫</b>です（任意）。</li>
+    <li>「Webhook URL」などの項目は、<b>さわらなくて大丈夫</b>です。</li>
+  </ol>
+</div>
+
+<!-- ───────── 3 ───────── -->
+<h2 id="s3"><span class="no">3</span>スプレッドシートのひな形をコピーして、動くようにする</h2>
+<p>予定やタスクを入れておく、あなた専用のスプレッドシートを用意します。秘書を動かすプログラムも、いっしょにコピーされます。</p>
+<a class="btn" href="https://docs.google.com/spreadsheets/d/1Y_RIr2PYZiuD9O_9UDr2teiVmXHILTLM4oFIb70ZRGc/copy" target="_blank" rel="noopener">ひな形をコピーする</a>
+<div class="card">
+  <h3 style="margin-top:0">3-1　コピーを作る</h3>
+  <ol>
+    <li>上のボタンを押し、出てきた画面で<b>「コピーを作成」</b>を押します。</li>
+    <li>あなたのGoogleドライブに、スプレッドシートのコピーができて開きます。<b>このコピーが、これからあなたが使うものです。</b></li>
+  </ol>
+
+  <h3>3-2　はじめの準備を動かす（1回だけ）</h3>
+  <ol>
+    <li>コピーしたスプレッドシートの上のメニューで、<b>「拡張機能」→「Apps Script」</b>を開きます。</li>
+    <li>上の関数の選び方の欄で<b>「初期設定」</b>を選び、<b>「▷ 実行」</b>を押します。</li>
+    <li>「承認が必要です」と出たら<b>「権限を確認」</b>を押し、ご自分のGoogleアカウントを選びます。</li>
+    <li>「このアプリは Google で確認されていません」と出たら、<b>「詳細」</b>→ いちばん下の<b>「LINE秘書（安全ではないページ）に移動」</b>を押します。
+      <div class="tip">これは、ご自分で使うために作ったプログラムに出る表示です。許可の画面にはGoogleカレンダーの項目も出てきますが、このプログラムがカレンダーでするのは、予定を読むことだけです。</div></li>
+    <li>許可の画面で<b>「すべて選択」</b>にチェックを入れて、<b>「続行」</b>を押します。</li>
+    <li>下の「実行ログ」に<b>「初期設定が終わりました」</b>と出れば完了です。</li>
+  </ol>
+
+  <h3>3-3　デプロイする（設定サイトとつなぐための準備・1回だけ）</h3>
+  <ol>
+    <li>右上の<b>「デプロイ」→「新しいデプロイ」</b>を押します。</li>
+    <li>「種類の選択」の横の歯車を押して、<b>「ウェブアプリ」</b>を選びます。</li>
+    <li>次のように選びます。
+      <table style="margin:6px 0">
+        <tr><th>説明</th><td>空のままで大丈夫です</td></tr>
+        <tr><th>次のユーザーとして実行</th><td><b class="k">自分</b></td></tr>
+        <tr><th>アクセスできるユーザー</th><td><b class="k">全員</b></td></tr>
+      </table>
+      <div class="tip">「全員」にしても、あなたのパスワードを知らない人は中身を見られません。設定サイトからつなぐために必要な設定です。</div></li>
+    <li><b>「デプロイ」</b>を押します。</li>
+    <li>「ウェブアプリ」の<b>URL</b>の下の<b>「コピー」</b>を押します。<b>このURLを、すぐ次の手順4で使います。</b></li>
+  </ol>
+</div>
+
+<!-- ───────── 4 ───────── -->
+<h2 id="s4"><span class="no">4</span>設定サイトにログインして、スプレッドシートとつなぐ</h2>
+<a class="btn" href="./" target="_blank" rel="noopener">設定サイトを開く</a>
+<div class="card">
+  <ol>
+    <li>提供者から届いた<b>利用者ID</b>と<b>最初のパスワード</b>で、<b>「ログイン」</b>します。</li>
+    <li>はじめてのときは、あなた自身のパスワードに変えます（8文字以上）。新しいパスワードを2回入れて<b>「パスワードを変える」</b>を押します。</li>
+    <li>スプレッドシートとつなぐ画面で、手順3-3でコピーしたURLを貼り、<b>「つなぐ」</b>を押します。
+      <div class="tip">貼るのは「https://script.google.com/macros/s/…/exec」の形のURLです。スプレッドシートの画面のURL（docs.google.com…）ではありません。</div></li>
+  </ol>
+  <p class="note" style="margin-bottom:0">つなぐと、設定サイトの「初期確認」タブに、残りのやることが順番に出てきます。</p>
+</div>
+
+<!-- ───────── 5 ───────── -->
+<h2 id="s5"><span class="no">5</span>LINEとつなぐ</h2>
+<p>設定サイトの「初期確認」で<b>「LINEとつなぐ」</b>を押すと、LINEの情報を入れる欄が開きます。入れる値は、LINE Developers（開発者用の画面）からコピーします。</p>
+<a class="btn sec" href="https://developers.line.biz/console/" target="_blank" rel="noopener">LINE Developersを開く</a>
+<div class="card">
+  <div class="warn"><b>コピーと貼り付けは、1つずつ行ってください。</b>2つ続けてコピーすると、先にコピーしたものが消えてしまいます。必ず「1つコピー → すぐ貼って保存 → 次をコピー」の順に進めます。</div>
+  <ol>
+    <li>LINE Developersで、プロバイダー<b>「あなたの秘書」</b>→ 手順1で作った公式アカウントのチャネルを開きます。</li>
+    <li><b>チャネルアクセストークン（長期）</b>
+      <ol>
+        <li><span class="en">Messaging API</span>（Messaging API設定）タブを開き、いちばん下までスクロールします。</li>
+        <li>「チャネルアクセストークン（長期）」の<span class="en">Issue</span>（＝<b>発行</b>）を押すと、長い文字が出ます。それをコピーします。</li>
+        <li><b>すぐに</b>設定サイトの「チャネルアクセストークン（長期）」の欄に貼り、<b>「LINEの情報を保存」</b>を押します。</li>
+      </ol></li>
+    <li><b>あなたのユーザーID</b>
+      <ol>
+        <li><span class="en">Basic settings</span>（＝<b>チャネル基本設定</b>）タブを開き、いちばん下までスクロールします。</li>
+        <li><span class="en">Your user ID</span>（＝<b>あなたのユーザーID</b>）の、「U」から始まる文字をコピーします。</li>
+        <li>設定サイトの「あなたのユーザーID」の欄に貼り、<b>「LINEの情報を保存」</b>を押します。</li>
+      </ol></li>
+  </ol>
+  <p class="note" style="margin-bottom:0">入れた値は、あなたのスプレッドシートのプログラムの中にだけ保存されます。</p>
+</div>
+
+<!-- ───────── 6 ───────── -->
+<h2 id="s6"><span class="no">6</span>「初期確認」に出てくる順に進める</h2>
+<div class="card">
+  <p style="margin-top:0">あとは、設定サイトの「初期確認」タブの<b>「はじめにやること」</b>に出てくる順に進めるだけです。</p>
+  <ol>
+    <li><b>毎日のリマインドの時刻を決める</b>：毎日何時に届けるかを決めます。夜に明日の予定を受け取りたいときは「翌日の予定を送る」にチェックします。</li>
+    <li><b>予定やタスクを入れる</b>：「定例」（毎週月曜・隔週・毎月第3土曜など）、「単発」（急な予定・会議）、「タスク」を入れます。</li>
+    <li><b>LINE送信確認</b>：ちゃんと届くかを確かめます。押す前に確認が出ます。</li>
+  </ol>
+  <p>Googleカレンダーの予定も入れたいときは、⚙設定 →「全体の設定」→「Googleカレンダーの連携」で、入れたいカレンダーにチェックを入れて保存します。</p>
+</div>
+
+<h2>よくある質問</h2>
+<details>
+  <summary>お金はかかりますか？（LINEの通数）</summary>
+  <p>LINE公式アカウントの無料のプランでは、月に200通まで送れます。毎日のリマインドは1日1通なので、月に多くて31通です。</p>
+  <p>テスト送信（LINE送信確認）も1通として数えられます。毎日のリマインドの分を残しておくため、今月の送信数が169通に達すると、テスト送信は止まるようになっています。</p>
+  <p>無料のプランのまま200通を超えても、勝手に有料になることはありません。超えた分が送られないだけです。</p>
+</details>
+<details>
+  <summary>スマホだけでできますか？</summary>
+  <p>この案内は、パソコンで進める手順で書いています。スマホだけで最後までできるかは、まだ確かめていません。準備が終わったあとの予定やタスクの入力は、スマホの設定サイトからできます。</p>
+</details>
+<details>
+  <summary>別のスマホやパソコンからも使えますか？</summary>
+  <p>使えます。設定サイトを開いて、同じ利用者IDとパスワードでログインしてください。</p>
+</details>
+<details>
+  <summary>うまくいかないときは？</summary>
+  <p>どの手順で、どんな画面や文字が出たかを、提供者に知らせてください。画面の写真（スクリーンショット）があると早く分かります。</p>
+</details>
+
+<a class="btn" href="./">設定サイトへ</a>
+<p class="note" style="text-align:center">はじめての方へ 1.1.001</p>
+</main>
+</body>
+</html>
