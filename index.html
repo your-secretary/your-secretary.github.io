@@ -117,9 +117,10 @@
   @font-face { font-family: 'SplashFont'; src: url('icons/splash.woff2') format('woff2'); font-weight: 700; font-display: block; }
   #splash { position: fixed; inset: 0; z-index: 50; background: #fff; overflow: hidden; transition: opacity .5s ease; }
   #splash .band { position: absolute; left: 0; right: 0; top: 0; height: calc(56px + env(safe-area-inset-top)); background: var(--main); transform: scaleX(0); transform-origin: left; }
-  #splash .line { position: absolute; left: 50%; width: 2px; margin-left: -1px; background: var(--main); border-radius: 1px; transform: scaleY(0); transform-origin: top; }
-  #splash .drop { position: absolute; left: 50%; width: 14px; height: 20px; margin-left: -7px; fill: var(--main); opacity: 0; transform-origin: 50% 100%; overflow: visible; }
-  #splash .logo { position: absolute; left: 50%; background: var(--main); border-radius: 23%; transform: scale(0); display: flex; align-items: center; justify-content: center;
+  #splash .line { position: absolute; left: 50%; width: 2px; margin-left: -1px; height: 0; background: var(--main); border-radius: 1px; }
+  #splash .drop { position: absolute; left: 50%; top: 0; width: 14px; height: 20px; margin-left: -7px; fill: var(--main); opacity: 0; transform-origin: 50% 0; overflow: visible; }
+  #splash .lw { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: flex-end; pointer-events: none; }
+  #splash .logo { flex: none; width: 0; height: 0; background: var(--main); display: flex; align-items: center; justify-content: center; overflow: hidden;
     color: #fff; font-family: 'SplashFont', 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif; font-weight: 700; box-shadow: 0 18px 40px rgba(31,138,76,0); }
   #splash .logo .in { display: flex; flex-direction: column; align-items: center; }
   #splash .logo .s1 { letter-spacing: .24em; padding-left: .24em; opacity: .82; white-space: nowrap; min-height: 1.4em; line-height: 1.4; }
@@ -157,7 +158,7 @@
 </style>
 </head>
 <body>
-<div id="splash" aria-label="LINEで届く あなたの秘書 リマインダー"><div class="band"></div><div class="line"></div><svg class="drop" viewBox="0 0 20 28" aria-hidden="true"><path d="M10 0C10 0 2.2 10.4 2.2 17.8a7.8 7.8 0 0 0 15.6 0C17.8 10.4 10 0 10 0z"/></svg><div class="logo"><div class="in"><div class="s1"></div><div class="s2"></div><div class="rule"></div><div class="s3"></div></div></div><div class="tap"><span>タップしてください</span></div></div>
+<div id="splash" aria-label="LINEで届く あなたの秘書 リマインダー"><div class="band"></div><div class="line"></div><svg class="drop" viewBox="0 0 20 28" aria-hidden="true"><path d="M10 0C10 0 2.2 10.4 2.2 17.8a7.8 7.8 0 0 0 15.6 0C17.8 10.4 10 0 10 0z"/></svg><div class="lw"><div class="logo"><div class="in"><div class="s1"></div><div class="s2"></div><div class="rule"></div><div class="s3"></div></div></div></div><div class="tap"><span>タップしてください</span></div></div>
 <div id="busy"><div class="bx"><div class="sp"></div>読み込み中です</div></div>
 <div class="topbar">
 <header>
@@ -180,7 +181,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.013';
+  var SITE_VERSION = '1.1.014';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
@@ -1108,25 +1109,27 @@
   }
 
   // ---------- 起動 ----------
-  // 開いたときの画面：緑の帯 → 帯のまん中から細い線が下へ → 線の先に雨だれがふくらんで離れる → 落ちながら縦にのびる
-  //   → 着地してつぶれる → パッと正方形のロゴに広がる → 白い文字が1字ずつ打たれる → タップで中へ
+  // 開いたときの画面
+  //   緑の帯 → 帯のまん中から細い線が落ちていく。止まらずに、落ちながら先に雨だれができてふくらむ
+  //   → 雨だれだけが離れて落ち続け、離れた瞬間に線は消える → 落ちるほど速く・縦長に
+  //   → 地面（ロゴの下の辺）に着いてつぶれる → 少し止まる → 水たまりのように横に広がる → 上に立ち上がって正方形のロゴになる
+  //   → 白い文字が1字ずつ打たれる → タップで中へ
   (function splash() {
     var sp = document.getElementById('splash'), band = sp.querySelector('.band'), line = sp.querySelector('.line'), drop = sp.querySelector('.drop'),
-        logo = sp.querySelector('.logo'), s1 = logo.querySelector('.s1'), s2 = logo.querySelector('.s2'), rule = logo.querySelector('.rule'), s3 = logo.querySelector('.s3'),
-        tap = sp.querySelector('.tap');
+        lw = sp.querySelector('.lw'), logo = sp.querySelector('.logo'), s1 = logo.querySelector('.s1'), s2 = logo.querySelector('.s2'),
+        rule = logo.querySelector('.rule'), s3 = logo.querySelector('.s3'), tap = sp.querySelector('.tap');
     var A = 'LINEで届く', B = 'あなたの秘書', C = 'リマインダー', cur = '<span class="cur"></span>';
     var vw = window.innerWidth, vh = window.innerHeight, bandB = band.getBoundingClientRect().height;
     var W = Math.round(Math.min(vw * 0.56, 232, (vh - bandB) * 0.5));          // 正方形のロゴの一辺
-    var Y = Math.round(bandB + (vh - bandB) * 0.45);                         // ロゴのまん中（＝しずくの着地点）
-    var lineEnd = Math.round(bandB + (Y - bandB) * 0.42);                    // 線が止まって、しずくがふくらむところ
-    var DH = 20;                                                             // しずくの高さ
-    logo.style.width = logo.style.height = W + 'px'; logo.style.marginLeft = -W / 2 + 'px'; logo.style.top = (Y - W / 2) + 'px';
+    var Yc = Math.round(bandB + (vh - bandB) * 0.45);                        // ロゴのまん中
+    var G = Yc + Math.round(W / 2);                                          // 地面（ロゴの下の辺）＝しずくの着地点
+    var DH = 20, R = Math.round(W * 0.23);                                   // しずくの高さ、ロゴの角の丸み
     s1.style.fontSize = Math.round(W * 0.064) + 'px'; s2.style.fontSize = Math.round(W * 0.128) + 'px'; s3.style.fontSize = Math.round(W * 0.056) + 'px';
     rule.style.margin = Math.round(W * 0.05) + 'px 0 ' + Math.round(W * 0.045) + 'px';
-    line.style.top = bandB + 'px'; line.style.height = (lineEnd - bandB) + 'px';
-    drop.style.top = (lineEnd - 3) + 'px';
-    tap.style.top = (Y + W / 2 + 34) + 'px';
-    var anims = [], timers = [], ready = false, done = false;
+    lw.style.top = (G - W * 1.2) + 'px'; lw.style.height = (W * 1.2) + 'px';
+    line.style.top = bandB + 'px';
+    tap.style.top = (G + 34) + 'px';
+    var anims = [], timers = [], raf = 0, ready = false, done = false;
     var at = function (ms, fn) { timers.push(setTimeout(fn, ms)); };
     var go = function (el, frames, opt) { var a = el.animate(frames, Object.assign({ fill: 'forwards' }, opt)); anims.push(a); return a; };
     var fontReady = (document.fonts && document.fonts.load) ? Promise.race([document.fonts.load("700 20px 'SplashFont'"), new Promise(function (r) { setTimeout(r, 1500); })]) : Promise.resolve();
@@ -1144,36 +1147,54 @@
         });
       });
     }
+    function setLogo(w, h, r) { logo.style.width = w + 'px'; logo.style.height = h + 'px'; logo.style.borderRadius = r + 'px'; }
     function finalState() {
-      timers.forEach(clearTimeout); timers = []; anims.forEach(function (a) { try { a.cancel(); } catch (e) {} }); anims = [];
-      band.style.transform = 'scaleX(1)'; line.style.transform = 'scaleY(0)'; drop.style.opacity = '0';
-      logo.style.transform = 'scale(1)'; logo.style.boxShadow = '0 18px 40px rgba(31,138,76,.22)'; rule.style.transform = 'scaleX(1)';
+      timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf); anims.forEach(function (a) { try { a.cancel(); } catch (e) {} }); anims = [];
+      band.style.transform = 'scaleX(1)'; line.style.opacity = '0'; drop.style.opacity = '0';
+      setLogo(W, W, R); logo.style.boxShadow = '0 18px 40px rgba(31,138,76,.22)'; rule.style.transform = 'scaleX(1)';
       s1.textContent = A; s2.textContent = B; s3.textContent = C; tap.classList.add('on'); ready = true;
     }
+    // 着地してから：つぶれる → 少し止まる → 横に広がる → 立ち上がって正方形
+    function land(sx, sy) {
+      var base = 'translate(0px, ' + (G - DH) + 'px) ';
+      drop.style.transformOrigin = '50% 100%';
+      go(drop, [{ transform: base + 'scale(' + sx + ',' + sy + ')' }, { transform: base + 'scale(1.9, .32)' }], { duration: 110, easing: 'cubic-bezier(.2,.8,.3,1)' });
+      at(190, function () {                                                     // 少し止まってから、つぶれたしずくがそのまま水たまりになる
+        drop.style.opacity = '0';
+        var w0 = 27, h0 = 6;
+        setLogo(w0, h0, h0 / 2);
+        var hp = Math.max(8, Math.round(W * 0.09));
+        go(logo, [{ width: w0 + 'px', height: h0 + 'px', borderRadius: h0 / 2 + 'px' }, { width: W + 'px', height: hp + 'px', borderRadius: hp / 2 + 'px' }],
+          { duration: 320, easing: 'cubic-bezier(.3,.7,.2,1)' });
+        at(210, function () {                                                   // 広がりきる少し前から、そのまま立ち上がる
+          go(logo, [{ width: W + 'px', height: hp + 'px', borderRadius: hp / 2 + 'px' },
+                    { width: W + 'px', height: Math.round(W * 1.05) + 'px', borderRadius: R + 'px', offset: .7 },
+                    { width: W + 'px', height: W + 'px', borderRadius: R + 'px' }], { duration: 600, easing: 'cubic-bezier(.3,.9,.35,1)' });
+          go(logo, [{ boxShadow: '0 18px 40px rgba(31,138,76,0)' }, { boxShadow: '0 18px 40px rgba(31,138,76,.22)' }], { delay: 300, duration: 800, easing: 'ease' });
+          at(560, type);
+        });
+      });
+    }
     var reduce = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || !Element.prototype.animate;
-    requestAnimationFrame(function () {
+    requestAnimationFrame(function (t0) {
       if (reduce) { finalState(); return; }
-      var EIN = 'cubic-bezier(.55,0,.9,.45)', EOUT = 'cubic-bezier(.22,1,.36,1)';
       go(band, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 620, easing: 'cubic-bezier(.65,0,.35,1)' });
-      // 線：帯のまん中から下へ
-      go(line, [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { delay: 520, duration: 460, easing: EIN });
-      // 雨だれ：線の先でふくらむ（少し縦にのびて、ぶら下がる）
-      go(drop, [{ opacity: 0, transform: 'scale(.15, .2)' }, { opacity: 1, transform: 'scale(.9, 1)', offset: .6 }, { opacity: 1, transform: 'scale(1, 1.12)' }],
-        { delay: 940, duration: 360, easing: EOUT });
-      // 線は、しずくの方へ吸い込まれて消える
-      at(1060, function () { line.style.transformOrigin = 'bottom'; go(line, [{ transform: 'scaleY(1)' }, { transform: 'scaleY(0)' }], { duration: 320, easing: 'cubic-bezier(.4,0,.2,1)' }); });
-      // 落ちる：下に行くほど縦長に
-      var fall = Y - (lineEnd - 3) - DH;
-      go(drop, [{ transform: 'translateY(0) scale(1, 1.12)' }, { transform: 'translateY(' + fall + 'px) scale(.8, 1.5)' }], { delay: 1300, duration: 380, easing: EIN });
-      // 着地：つぶれて、消える
-      go(drop, [{ transform: 'translateY(' + fall + 'px) scale(.8, 1.5)', opacity: 1 }, { transform: 'translateY(' + fall + 'px) scale(1.7, .38)', opacity: 1, offset: .55 },
-                { transform: 'translateY(' + fall + 'px) scale(2.2, .2)', opacity: 0 }], { delay: 1680, duration: 170, easing: 'ease-out' });
-      // パッと広がって、正方形のロゴに（いったん少し行き過ぎて、戻る）
-      go(logo, [{ transform: 'scale(.06, .02)', borderRadius: '50%' }, { transform: 'scale(1.07, .9)', borderRadius: '26%', offset: .42 },
-                { transform: 'scale(.97, 1.04)', borderRadius: '23%', offset: .7 }, { transform: 'scale(1, 1)', borderRadius: '23%' }],
-        { delay: 1745, duration: 820, easing: 'cubic-bezier(.2,.9,.3,1)' });
-      go(logo, [{ boxShadow: '0 18px 40px rgba(31,138,76,0)' }, { boxShadow: '0 18px 40px rgba(31,138,76,.22)' }], { delay: 2100, duration: 900, easing: 'ease' });
-      at(2450, type);
+      var START = 520, T = 980, D = G - bandB, DETACH = .6;                    // 落ちはじめ、落ちる時間、落ちる距離、離れるところ
+      var smooth = function (x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+      (function frame(now) {
+        var t = now - t0 - START;
+        if (t < 0) { raf = requestAnimationFrame(frame); return; }
+        var p = Math.min(1, t / T), L = bandB + D * p * p;                    // いちばん下の点（重力のように、だんだん速く）
+        var s = p;                                                            // 速さ（0〜1）
+        var g = smooth((p - .2) / .38);                                       // しずくの大きさ（落ちながらふくらむ）
+        var sx = 1 - .24 * s * s, sy = 1 + .62 * s * s;                       // 速いほど細く縦長に
+        var h = DH * g * sy, top = L - h;
+        drop.style.opacity = g > 0 ? '1' : '0';
+        drop.style.transform = 'translate(0px, ' + top + 'px) scale(' + (g * sx) + ',' + (g * sy) + ')';
+        if (p < DETACH) line.style.height = Math.max(0, top + 2 - bandB) + 'px';   // 線は、しずくの先までつながっている
+        else line.style.opacity = '0';                                        // 離れた瞬間に、線は消える
+        if (p < 1) raf = requestAnimationFrame(frame); else land(g * sx, g * sy);
+      })(t0);
     });
     sp.onclick = function () {
       if (!ready) { finalState(); return; }                                       // 途中で押したら、最後の形まで進める
