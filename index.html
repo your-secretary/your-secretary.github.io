@@ -149,6 +149,8 @@
   .hbtn .dot { position: absolute; top: 10px; right: 12px; width: 9px; height: 9px; border-radius: 50%; background: var(--warn); }
   .hbtn.goL, .hbtn.goR { transition: transform .45s cubic-bezier(.55, 0, .7, .2), opacity .45s; opacity: 0; }
   .hbtn.goL { transform: translateX(-120vw); }
+  .homeCheck { width: 100%; margin-top: 18px; transition: opacity .3s; }
+  .homeCheck.fade { opacity: 0; }
   .hbtn.goR { transform: translateX(120vw); }
   .hbtn.chosen { transition: transform .5s cubic-bezier(.34, 1.4, .64, 1); z-index: 2; box-shadow: 0 10px 26px rgba(31,138,76,.25), inset 0 0 0 2px var(--main); }
   /* ── 読み込み中 ── */
@@ -168,11 +170,10 @@
   <div class="hr"><button class="st" id="hdrState"></button><button class="gear" id="gearBtn">⚙ 設定</button></div>
 </header>
 <nav class="tabs" id="tabs" style="display:none">
-  <button data-tab="home">ホーム</button>
+  <button data-tab="home" class="chk">ホーム</button>
   <button data-tab="today">今日</button>
   <button data-tab="tomorrow">明日</button>
   <button data-tab="tasks">タスク（定例・単発）</button>
-  <button data-tab="check" class="chk">初期確認</button>
 </nav>
 </div>
 <main id="app"><div class="loading">読み込み中…</div></main>
@@ -184,10 +185,13 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.019';
+  var SITE_VERSION = '1.1.021';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: 'すべて', quota: null };
+  // 開いたときの読み込み（ログイン・中身・設定で使う一覧）が終わったら、ロゴを広げる
+  var BOOT = { done: false, cb: null };
+  function bootDone() { if (BOOT.done) return; BOOT.done = true; if (BOOT.cb) BOOT.cb(); }
   var app = document.getElementById('app');
 
   // ---------- 小物 ----------
@@ -282,10 +286,13 @@
   }
   function verLine() { return '<p class="note" style="text-align:center;margin-top:14px">バージョン ' + SITE_VERSION + '</p>'; }
 
-  function renderLogin(msg) {
+  // first：「新規登録（はじめての方）」から来たとき。購入者専用であることを先に書く
+  function renderLogin(msg, first) {
     bare();
     app.innerHTML =
-      '<div class="card"><h2 style="margin-top:0">ログイン</h2>' +
+      (first ? '<div class="card" style="border-color:var(--warn)"><b>このアプリは、ご購入いただいた方専用です。</b>' +
+        '<p class="note" style="margin:6px 0 0">まだお申し込みでない方は、ご購入いただき、アカウント（利用者IDと最初のパスワード）を受け取ってから、もう一度アクセスしてください。</p></div>' : '') +
+      '<div class="card"><h2 style="margin-top:0">' + (first ? 'はじめてのログイン' : 'ログイン') + '</h2>' +
       (msg ? '<p class="note" style="color:var(--warn)">' + esc(msg) + '</p>' : '') +
       '<label class="f">利用者ID</label><input type="text" id="lgId" autocomplete="username" autocapitalize="off">' +
       '<label class="f">パスワード</label><input type="password" id="lgPw" autocomplete="current-password">' +
@@ -300,9 +307,19 @@
     };
   }
 
+  function startChoice() {
+    if (!document.getElementById('lgGo') || S.data) return;
+    var ever = false; try { ever = localStorage.getItem('lineHishoEver') === '1'; } catch (e) {}
+    openModal('<h3>ようこそ</h3><p class="note">あてはまる方を選んでください。</p>' +
+      '<div class="actions"><button class="btn' + (ever ? '' : ' sec') + '" id="scLogin">ログイン</button>' +
+      '<button class="btn' + (ever ? ' sec' : '') + '" id="scNew">新規登録（はじめての方）</button></div>');
+    document.getElementById('scLogin').onclick = function () { closeModal(); var i = document.getElementById('lgId'); if (i) i.focus(); };
+    document.getElementById('scNew').onclick = function () { closeModal(); renderLogin('', true); };
+  }
   function doLogin(cred) {
     return adminApi('login', {}, cred).then(function (j) {
       S.conn = { id: cred.id, pw: cred.pw, url: j.boundUrl || '', name: j.name || '' }; S.isAdmin = !!j.admin;
+      try { localStorage.setItem('lineHishoEver', '1'); } catch (e) {}
       if (!saveConn(S.conn)) toast('この端末に保存できませんでした。次回もう一度ログインが必要です', true);
       if (j.mustChange) return renderChangePw(true);
       if (!S.conn.url) return renderConnect();
@@ -418,6 +435,11 @@
     markStandalone();
     updateHeader();
     render();
+    S.pre = prefetch();
+  }
+  function prefetch() {
+    var call = function (action) { return post_(S.conn.url, { action: action, key: S.conn.pw, accountId: S.conn.id }); };
+    if (!hourGet('calendars')) return call('calendars').then(function (j) { hourPut('calendars', (j.calendars || []).map(function (x) { return { id: x.id, name: x.name }; })); }).catch(function () {});
   }
 
   function lineOk() { return !!(S.line && S.line.token && S.line.userId); }
@@ -446,7 +468,11 @@
     Object.keys(FLAG_KEYS).forEach(function (k) { if (old[k] && !now[k]) up[FLAG_KEYS[k]] = '○'; });
     var done = function () { try { localStorage.removeItem(FLAGS); } catch (e) {} };
     if (!Object.keys(up).length) { done(); return; }
-    api('saveSettings', { settings: up }).then(function (j) { S.settings = j.settings; done(); updateHeader(); if (S.tab === 'check' || S.tab === 'today' || S.tab === 'tomorrow') render(); }).catch(function () {});
+    api('saveSettings', { settings: up }).then(function (j) { S.settings = j.settings; done(); updateHeader(); if (S.tab === 'home' || S.tab === 'today' || S.tab === 'tomorrow') render(); }).catch(function () {});
+  }
+  function goSetup() {
+    S.tab = 'home'; render();
+    var el = document.getElementById('chkArea'); if (el) el.scrollIntoView({ block: 'start' });
   }
   function openSettings(anchor) {
     if (S.tab !== 'settings' && S.tab !== 'admin') S.prevTab = S.tab;
@@ -468,7 +494,8 @@
     add.style.display = S.tab === 'tasks' ? 'block' : 'none';
     updateHeader();
     window.scrollTo(0, 0);
-    ({ home: viewHome, admin: viewAdmin, today: viewToday, tomorrow: viewTomorrow, tasks: viewTasks, check: viewCheck, settings: viewSettings })[S.tab]();
+    if (S.tab === 'check') S.tab = 'home';
+    ({ home: viewHome, admin: viewAdmin, today: viewToday, tomorrow: viewTomorrow, tasks: viewTasks, settings: viewSettings })[S.tab]();
   }
   document.getElementById('tabs').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.tab; render(); };
   document.getElementById('addBtn').onclick = function () {
@@ -585,33 +612,36 @@
   function viewDay(day) {
     app.innerHTML =
       (setupLeft() ? '<div class="card" style="border-color:var(--warn)"><b>はじめにやることが、あと' + setupLeft() + 'つ残っています。</b>' +
-        '<div style="margin-top:8px"><button class="btn sec" id="toCheck">初期確認へ</button></div></div>' : '') +
+        '<div style="margin-top:8px"><button class="btn sec" id="toCheck">はじめにやることへ</button></div></div>' : '') +
       '<h2 style="margin-top:4px">' + (day === 'today' ? '今日の予定' : '明日の予定') + '</h2>' +
       '<div id="pv"><div class="loading">作っています…</div></div>';
-    var tc = document.getElementById('toCheck'); if (tc) tc.onclick = function () { S.tab = 'check'; render(); };
+    var tc = document.getElementById('toCheck'); if (tc) tc.onclick = goSetup;
     bindPreview('pv', day);
   }
   function viewToday() { viewDay('today'); }
   function viewTomorrow() { viewDay('tomorrow'); }
 
-  // 初期確認：はじめにやること・つながりの一覧・送信数
-  function viewCheck() {
+  // はじめにやること・つながりの一覧・送信数（ホームの3つのボタンの下に出す）
+  function checkHtml() {
     var s = S.settings || {}, ok = lineOk(), left = setupLeft();
     var times = '毎日 ' + (s['リマインドの時刻'] || '07:00') + (s['翌日の予定を送る'] === '○' ? '（翌日の予定）' : '（その日の予定）');
     var row = function (label, good, text) {
       return '<div class="status"><div><b>' + label + '</b><div class="note" style="margin:0">' + esc(text) + '</div></div>' +
         (good ? '<span class="chip">OK</span>' : '<span class="chip warn">まだです</span>') + '</div>';
     };
-    app.innerHTML =
+    return '<div id="chkArea">' +
       (left ? setupCard() : '<div class="card" style="border-color:var(--main)"><b>✅ はじめにやることは、全部終わっています。</b>' +
-        '<div style="margin-top:10px"><button class="btn" id="toAll">全体の設定画面へ</button></div></div>') +
+        '<div style="margin-top:10px"><a class="btn" href="guide.html" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">はじめての方へ（設定のやり方の説明）</a></div></div>') +
       '<h2>つながりの一覧</h2><div class="card">' +
       row('スプレッドシート', true, S.sheet ? S.sheet.name : 'つながっています') +
       row('LINE', ok, ok ? '秘書のアカウントとつながっています' : 'まだつながっていません') +
       row('毎日のリマインド', !!flags().timeSet, flags().timeSet ? times : 'まだ決めていません（今は ' + times + '）') +
       '</div>' +
       '<div class="sethead"><h2 style="margin:0">今月の送信数</h2>' + (ok ? '<button class="btn sec slim" id="qRe">再読み込み</button>' : '') + '</div>' +
-      '<div class="card" id="qBox2"><div class="loading" style="padding:8px">確かめています…</div></div>';
+      '<div class="card" id="qBox2"><div class="loading" style="padding:8px">確かめています…</div></div></div>';
+  }
+  function bindCheck() {
+    var ok = lineOk();
     if (ok) {
       var showQ = function (force) {
         var b = document.getElementById('qBox2'); if (b && force) b.innerHTML = '<div class="loading" style="padding:8px">確かめています…</div>';
@@ -626,7 +656,6 @@
     } else {
       document.getElementById('qBox2').innerHTML = '<p class="note">LINEとつなぐと、ここに出ます。</p>';
     }
-    var ta = document.getElementById('toAll'); if (ta) ta.onclick = function () { openSettings(); };
     var go = document.getElementById('setupGo');
     if (go) go.onclick = function () {
       var g = this.dataset.go;
@@ -682,8 +711,8 @@
       b('today', '☀', '今日の予定', dl(t)) +
       b('tomorrow', '🌙', '明日の予定', dl(tm)) +
       b('tasks', '✓', 'タスク（定例・単発）', '残りのやること ' + open + '件') +
-      b('check', '⚙', '初期確認', left ? 'はじめにやること あと' + left + 'つ' : 'はじめにやることは全部終わっています', left > 0) +
-      '</div>';
+      '<div class="homeCheck">' + checkHtml() + '</div></div>';
+    bindCheck();
     // ボタンのかたまりを、見えている画面の上下のまん中に置く
     var hm = app.querySelector('.home'), fit = function () {
       if (!hm.isConnected) { window.removeEventListener('resize', fit); return; }
@@ -697,6 +726,7 @@
         if (app.dataset.moving) return; app.dataset.moving = '1';
         var i = btns.indexOf(el), r = el.getBoundingClientRect(), dy = window.innerHeight / 2 - (r.top + r.height / 2);
         btns.forEach(function (o, j) { if (o !== el) o.classList.add(j % 2 ? 'goR' : 'goL'); });
+        var hc = app.querySelector('.homeCheck'); if (hc) hc.classList.add('fade');
         setTimeout(function () { el.classList.add('chosen'); el.style.transform = 'translateY(' + dy + 'px) scale(1.04)'; }, 120);
         setTimeout(function () { delete app.dataset.moving; S.tab = el.dataset.to; render(); }, 640);
       };
@@ -1034,7 +1064,7 @@
       var btn = this; busy(btn, true, '保存しています…');
       api('saveSettings', { settings: st }).then(function (j) {
         S.settings = j.settings;
-        if (setupLeft()) { S.tab = 'check'; render(); toast('保存しました。次の「はじめにやること」に進みましょう'); }
+        if (setupLeft()) { goSetup(); toast('保存しました。次の「はじめにやること」に進みましょう'); }
         else { busy(btn, false); toast('保存しました。次のリマインドから反映されます'); }
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
@@ -1047,7 +1077,7 @@
       var btn = this; busy(btn, true, '保存しています…');
       api('saveLine', { token: t, userId: u }).then(function (j) {
         var was = ok; S.line = j.line; updateHeader();
-        if (!was && lineOk()) { S.tab = 'check'; render(); toast('LINEとつながりました。次は「毎日のリマインドの時刻」を決めましょう'); }
+        if (!was && lineOk()) { goSetup(); toast('LINEとつながりました。次は「毎日のリマインドの時刻」を決めましょう'); }
         else { toast('保存しました'); viewSettings(); }
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
@@ -1212,13 +1242,20 @@
                   { width: d + 'px', height: d + 'px', borderRadius: d / 2 + 'px' }], { duration: 950, easing: 'cubic-bezier(.4,0,.25,1)' });
         go(lw, [{ transform: 'translateY(' + dy0 + 'px)' }, { transform: 'translateY(0px)' }],      // ゆっくり5%上（ロゴの中心）へ
           { duration: 950, easing: 'cubic-bezier(.4,0,.25,1)' });
-        at(1100, function () {                                                   // まん丸が、縦横そろって広がりながら正方形に
+        // まん丸になったら：読み込みが終わるまで、ふくらんだり縮んだりして待つ → 終わったら広がってロゴに
+        at(950, function () {
+          if (BOOT.done) { at(150, grow); return; }
+          var pulse = logo.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 1000, easing: 'ease-in-out', iterations: Infinity });
+          anims.push(pulse);
+          BOOT.cb = function () { var t = (pulse.currentTime || 0) % 1000; at(1000 - t, function () { pulse.cancel(); grow(); }); };
+        });
+        function grow() {                                                        // まん丸が、縦横そろって広がりながら正方形に
           go(logo, [{ width: d + 'px', height: d + 'px', borderRadius: d / 2 + 'px' },
                     { width: Math.round(W * 1.04) + 'px', height: Math.round(W * 1.04) + 'px', borderRadius: Math.round(R * 1.04) + 'px', offset: .72 },
                     { width: W + 'px', height: W + 'px', borderRadius: R + 'px' }], { duration: 700, easing: 'cubic-bezier(.33,.9,.36,1)' });
           go(logo, [{ boxShadow: '0 18px 40px rgba(31,138,76,0)' }, { boxShadow: '0 18px 40px rgba(31,138,76,.22)' }], { delay: 300, duration: 800, easing: 'ease' });
           at(620, type);
-        });
+        }
       });
     }
     var reduce = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || !Element.prototype.animate;
@@ -1243,23 +1280,22 @@
       })(t0);
     });
     sp.onclick = function () {
+      if (!ready) return;                                                         // 動きの途中（読み込み中）は、押しても進まない
       if (done) return; done = true;
-      if (!ready) {                                                               // 動きの途中で押したら、そのままパッとホーム画面へ
-        timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf);
-        sp.style.transition = 'opacity .15s ease'; sp.classList.add('out');
-        setTimeout(function () { sp.style.display = 'none'; anims.forEach(function (a) { try { a.cancel(); } catch (e) {} }); }, 170);
-        return;
-      }
       logo.animate([{ transform: 'scale(1)' }, { transform: 'scale(.93)', offset: .3 }, { transform: 'scale(1.03)', offset: .65 }, { transform: 'scale(1)' }],
         { duration: 460, easing: 'ease-out', fill: 'forwards' });
       setTimeout(function () { sp.classList.add('out'); }, 400);
-      setTimeout(function () { sp.style.display = 'none'; }, 900);
+      setTimeout(function () { sp.style.display = 'none'; startChoice(); }, 900);
     };
   })();
 
   S.conn = loadConn();
-  if (!S.conn || !S.conn.id) renderLogin();
-  else doLogin({ id: S.conn.id, pw: S.conn.pw }).catch(function (e) { renderLogin('自動でログインできませんでした：' + e.message); });
+  if (!S.conn || !S.conn.id) { renderLogin(); bootDone(); }
+  else {
+    doLogin({ id: S.conn.id, pw: S.conn.pw }).then(function () { return S.pre; })
+      .catch(function (e) { renderLogin('自動でログインできませんでした：' + e.message); }).then(bootDone, bootDone);
+    setTimeout(bootDone, 15000);                                                  // 15秒たっても終わらないときは、待たずにロゴを出す
+  }
 })();
 </script>
 </body>
