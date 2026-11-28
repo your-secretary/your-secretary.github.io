@@ -87,7 +87,10 @@
   header .hr { display: flex; gap: 8px; align-items: center; }
   header { flex-wrap: wrap; }
   header .inqrow { order: 3; flex-basis: 100%; display: none; justify-content: center; margin-top: 8px; }
-  header .inqrow.on { display: flex; }
+  header .inqrow.on { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn.slim.done { background: var(--main-soft); color: var(--main); box-shadow: none; cursor: default; }
+  .reply { background: var(--main-soft); border-radius: 10px; padding: 10px 12px; margin-top: 10px; white-space: pre-wrap; }
+  .reply .rh { font-size: 12px; color: var(--main); font-weight: 700; margin-bottom: 4px; white-space: normal; }
   header .inqbar { border: 0; border-radius: 999px; padding: 6px 16px; font: inherit; font-size: 13px; font-weight: 700; background: #fff; color: var(--warn); box-shadow: 0 2px 8px rgba(0,0,0,.15); animation: pop .35s cubic-bezier(.34, 1.56, .64, 1); }
   .inqimgs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .inqimgs .th { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
@@ -178,7 +181,7 @@
 <header>
   <h1><small>LINEで届く</small>あなたの秘書</h1>
   <div class="hr"><button class="st" id="hdrState"></button><button class="gear" id="gearBtn">⚙ 設定</button></div>
-  <div class="inqrow" id="inqRow"><button class="inqbar" id="inqBar"></button></div>
+  <div class="inqrow" id="inqRow"><button class="inqbar" id="inqBar" style="display:none"></button><button class="inqbar" id="repBar" style="display:none"></button></div>
 </header>
 <nav class="tabs" id="tabs" style="display:none">
   <button data-tab="home" class="chk">ホーム</button>
@@ -196,7 +199,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.022';
+  var SITE_VERSION = '1.1.023';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: 'すべて', quota: null };
@@ -321,12 +324,40 @@
   }
 
   // 管理者でログインしているときだけ、届いている問い合わせ（未対応）を帯の真ん中に出す
+  // お客さんには、まだ読んでいない「お問い合わせのお返事」を出す
   function showInqBar() {
-    var row = document.getElementById('inqRow'), on = !!(S.isAdmin && S.inq > 0 && S.conn);
-    row.classList.toggle('on', on);
-    if (on) document.getElementById('inqBar').textContent = '📩 問い合わせが来ています（' + S.inq + '件）';
+    var a = !!(S.isAdmin && S.inq > 0 && S.conn), r = !!(S.rep > 0 && S.conn);
+    document.getElementById('inqRow').classList.toggle('on', a || r);
+    var ib = document.getElementById('inqBar'), rb = document.getElementById('repBar');
+    ib.style.display = a ? '' : 'none'; rb.style.display = r ? '' : 'none';
+    if (a) ib.textContent = '📩 問い合わせが来ています（' + S.inq + '件）';
+    if (r) rb.textContent = '💬 お問い合わせのお返事が来ています（' + S.rep + '件）';
   }
   document.getElementById('inqBar').onclick = function () { S.admFrom = S.tab === 'admin' ? S.admFrom : S.tab; S.tab = 'admin'; render(); };
+  document.getElementById('repBar').onclick = function () { openMyInq(); };
+  function openMyInq() { if (S.tab !== 'myinq') S.myFrom = S.tab; S.tab = 'myinq'; render(); }
+
+  // 自分のお問い合わせとお返事
+  function viewMyInq() {
+    var back = S.myFrom && S.myFrom !== 'myinq' ? S.myFrom : 'home';
+    app.innerHTML = '<div class="sethead"><h2 style="margin:0;font-size:18px">お問い合わせとお返事</h2><button class="btn sec slim" id="myBack">戻る</button></div>' +
+      '<div id="myBox"><div class="loading">読み込んでいます…</div></div>' +
+      '<div style="margin-top:14px"><button class="btn sec" id="myNew">新しくお問い合わせする</button></div>';
+    document.getElementById('myBack').onclick = function () { S.tab = back; render(); };
+    document.getElementById('myNew').onclick = openInquiry;
+    withBusy(adminApi('myInquiries')).then(function (j) {
+      S.rep = 0; showInqBar();
+      var box = document.getElementById('myBox'); if (!box) return;
+      var it = j.items || [];
+      if (!it.length) { box.innerHTML = '<div class="card"><p class="note" style="margin:0">お問い合わせは、まだありません。</p></div>'; return; }
+      box.innerHTML = it.map(function (x) {
+        return '<div class="card"' + (x.fresh ? ' style="border-color:var(--main)"' : '') + '><div class="m">' + esc(x.at) + ' のお問い合わせ' + (x.fresh ? ' <span class="chip">新しいお返事</span>' : '') + '</div>' +
+          '<div style="white-space:pre-wrap;margin-top:6px">' + esc(x.body) + '</div>' +
+          (x.reply ? '<div class="reply"><div class="rh">担当からのお返事（' + esc(x.replyAt) + '）</div>' + esc(x.reply) + '</div>'
+                   : '<p class="note" style="margin:10px 0 0">担当が確認しています。お返事が来ると、画面の上に出ます。</p>') + '</div>';
+      }).join('');
+    }).catch(function (e) { var box = document.getElementById('myBox'); if (box) box.innerHTML = '<div class="warnbox">' + esc(e.message) + '</div>'; });
+  }
 
   // お問い合わせ（名前・メールアドレス・内容・スクショ3枚まで）
   function openInquiry() {
@@ -357,7 +388,8 @@
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m)) { toast('メールアドレスの形がちがうようです', true); return; }
       var btn = this; busy(btn, true, '送っています…');
       adminApi('inquiry', { name: n, mail: m, body: b, images: imgs }, S.conn || { id: '', pw: '' }).then(function () {
-        openModal('<h3>送りました</h3><p>お問い合わせを受け付けました。担当が確認します。</p><div class="actions"><button class="btn" id="iqOk">閉じる</button></div>');
+        openModal('<h3>送りました</h3><p>お問い合わせを受け付けました。担当が確認します。</p>' +
+          (S.conn ? '<p class="note">お返事は、この設定サイトの画面の上に「お問い合わせのお返事が来ています」と出ます。</p>' : '') + '<div class="actions"><button class="btn" id="iqOk">閉じる</button></div>');
         document.getElementById('iqOk').onclick = closeModal;
       }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
@@ -396,7 +428,7 @@
   }
   function doLogin(cred) {
     return adminApi('login', {}, cred).then(function (j) {
-      S.conn = { id: cred.id, pw: cred.pw, url: j.boundUrl || '', name: j.name || '' }; S.isAdmin = !!j.admin; S.inq = j.inquiries || 0; showInqBar();
+      S.conn = { id: cred.id, pw: cred.pw, url: j.boundUrl || '', name: j.name || '' }; S.isAdmin = !!j.admin; S.inq = j.inquiries || 0; S.rep = j.replies || 0; showInqBar();
       try { localStorage.setItem('lineHishoEver', '1'); } catch (e) {}
       if (!saveConn(S.conn)) toast('この端末に保存できませんでした。次回もう一度ログインが必要です', true);
       if (j.mustChange) return renderChangePw(true);
@@ -503,7 +535,7 @@
     document.getElementById('pbOut').onclick = logout;
   }
 
-  function logout() { clearConn(); S.conn = null; S.isAdmin = false; S.inq = 0; showInqBar(); S.tab = 'today'; S.quota = null; S.landed = false; renderLogin(); }
+  function logout() { clearConn(); S.conn = null; S.isAdmin = false; S.inq = 0; S.rep = 0; showInqBar(); S.tab = 'today'; S.quota = null; S.landed = false; renderLogin(); }
 
   function accept(j) {
     S.schema = j.schema; S.data = j.data; S.settings = j.settings; S.line = j.line; S.sheet = j.sheet || null; S.version = j.version || ''; S.offsets = j.offsets || [];
@@ -573,7 +605,7 @@
     updateHeader();
     window.scrollTo(0, 0);
     if (S.tab === 'check') S.tab = 'home';
-    ({ home: viewHome, admin: viewAdmin, today: viewToday, tomorrow: viewTomorrow, tasks: viewTasks, settings: viewSettings })[S.tab]();
+    ({ myinq: viewMyInq, home: viewHome, admin: viewAdmin, today: viewToday, tomorrow: viewTomorrow, tasks: viewTasks, settings: viewSettings })[S.tab]();
   }
   document.getElementById('tabs').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.tab; render(); };
   document.getElementById('addBtn').onclick = function () {
@@ -1109,7 +1141,8 @@
         '<button class="btn" id="toAdmin">お客さんの状況を見る</button></div>' : '') +
 
       '<h2>お問い合わせ</h2><div class="card"><p class="note">うまくいかないときや、分からないことがあるときは、ここから担当に送れます。スクリーンショットも添付できます。</p>' +
-        '<button class="btn sec" id="toInq">お問い合わせ</button></div>' +
+        '<button class="btn sec" id="toInq">お問い合わせ</button>' +
+        '<div style="margin-top:8px"><button class="btn sec" id="toMyInq">これまでのお問い合わせとお返事</button></div></div>' +
 
       '<h2>この端末</h2><div class="card"><p class="note">この端末からログアウトします。スプレッドシートの中身は消えません。次に使うときは、利用者IDとパスワードでログインします。</p>' +
       '<button class="btn danger" id="logout">ログアウト</button></div>' +
@@ -1132,6 +1165,7 @@
 
     var ta = document.getElementById('toAdmin'); if (ta) ta.onclick = function () { S.admFrom = 'settings'; S.tab = 'admin'; render(); };
     document.getElementById('toInq').onclick = openInquiry;
+    document.getElementById('toMyInq').onclick = openMyInq;
     document.getElementById('setClose').onclick = function () { S.tab = S.prevTab || 'today'; render(); };
     document.getElementById('setSub').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.setSub = b.dataset.g; viewSettings(); };
     document.getElementById('connChange').onclick = function () { confirmTwice(function () { renderConnect(true); }); };
@@ -1257,7 +1291,9 @@
           '<div class="m">メール：<a href="mailto:' + esc(x['メールアドレス']) + '" style="color:var(--main)">' + esc(x['メールアドレス']) + '</a></div>' +
           '<div style="white-space:pre-wrap;margin-top:8px">' + esc(x['内容']) + '</div>' +
           (n ? '<div class="inqfull"><button class="btn sec slim iqImg" style="margin-top:8px">画像を見る（' + n + '枚）</button></div>' : '') +
-          '<div style="margin-top:10px"><button class="btn ' + (open ? '' : 'sec ') + 'slim iqDone">' + (open ? '対応済みにする' : '未対応に戻す') + '</button></div></div>';
+          replyBlock(x) +
+          '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' + (open ? '<button class="btn slim iqDone">対応済みにする</button>'
+            : '<span class="btn slim done">対応済み</span><button class="btn sec slim iqUndo">未対応に戻す</button>') + '</div></div>';
       }).join('');
       [].forEach.call(box.querySelectorAll('.iqImg'), function (b) {
         b.onclick = function () {
@@ -1267,14 +1303,32 @@
           }).catch(function (e) { busy(b, false); toast(e.message, true); });
         };
       });
-      [].forEach.call(box.querySelectorAll('.iqDone'), function (b) {
+      [].forEach.call(box.querySelectorAll('.iqSend'), function (b) {
         b.onclick = function () {
-          var card = b.closest('[data-no]'), undo = b.textContent === '未対応に戻す';
+          var card = b.closest('[data-no]'), text = card.querySelector('.iqText').value.trim();
+          if (!text) { toast('返信の文を入れてください', true); return; }
+          busy(b, true, '送っています…');
+          withBusy(adminApi('inquiryReply', { no: card.dataset.no, text: text })).then(function () { toast('返信を送りました'); loadInquiries(); })
+            .catch(function (e) { busy(b, false); toast(e.message, true); });
+        };
+      });
+      [].forEach.call(box.querySelectorAll('.iqDone, .iqUndo'), function (b) {
+        b.onclick = function () {
+          var card = b.closest('[data-no]'), undo = b.classList.contains('iqUndo');
           adminApi('inquiryDone', { no: card.dataset.no, undo: undo }).then(function (k) { S.inq = k.inquiries || 0; showInqBar(); loadInquiries(); })
             .catch(function (e) { toast(e.message, true); });
         };
       });
     }).catch(function (e) { var box = document.getElementById('inqBox'); if (box) box.innerHTML = '<div class="warnbox">' + esc(e.message) + '</div>'; });
+  }
+
+  // 返信の欄（サイトで届けられるのは、ログインして送ってくれた人だけ）
+  function replyBlock(x) {
+    var id = String(x['利用者ID'] || ''), can = id && id.indexOf('（') < 0;
+    var done = x['返信'] ? '<div class="reply"><div class="rh">送った返信（' + esc(x['返信日']) + '）' + (x['返信を読んだ日'] ? '・相手が読みました（' + esc(x['返信を読んだ日']) + '）' : '・まだ読まれていません') + '</div>' + esc(x['返信']) + '</div>' : '';
+    if (!can) return done + '<p class="note" style="margin:10px 0 0">ログインしていない方（または利用者IDを確かめられない方）からのお問い合わせです。サイトではお返事を届けられないので、メールでお返事してください。</p>';
+    return done + '<label class="f" style="margin-top:10px">' + (x['返信'] ? '返信を送り直す' : '返信') + '</label><textarea class="iqText" style="width:100%;min-height:90px;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;border:1px solid #cfd6d0;border-radius:10px"></textarea>' +
+      '<div style="margin-top:6px"><button class="btn slim iqSend">返信を送る</button></div>';
   }
 
   // パスワードを変える（スプレッドシート側と、顧客管理側の両方）
