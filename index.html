@@ -67,9 +67,9 @@
   .wd label { border: 1px solid #cfd6d0; border-radius: 8px; padding: 6px 10px; }
   .wd input { margin-right: 4px; }
   .add { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--main); color: #fff; font-size: 30px; line-height: 1; box-shadow: 0 4px 12px rgba(0,0,0,.2); z-index: 6; }
-  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: flex-end; justify-content: center; z-index: 10; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 10; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
   .modal.show { display: flex; }
-  .sheet { background: #fff; width: 100%; max-width: 640px; max-height: 92vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); }
+  .sheet { background: #fff; width: 100%; max-width: 640px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; border-radius: 16px; padding: 16px 16px 20px; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
   .sheet h3 { margin: 0 0 4px; font-size: 17px; }
   .actions { display: grid; gap: 8px; margin-top: 18px; }
   pre.msg { white-space: pre-wrap; word-break: break-all; background: #effaf2; border: 1px solid #cde9d6; border-radius: 12px; padding: 12px; font: inherit; font-size: 15px; margin: 0; }
@@ -181,7 +181,7 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.017';
+  var SITE_VERSION = '1.1.018';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
   var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
