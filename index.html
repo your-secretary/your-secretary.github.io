@@ -30,7 +30,9 @@
   nav.tabs { background: #fff; border-bottom: 1px solid var(--line); display: flex; box-shadow: 0 2px 4px rgba(0,0,0,.04); }
   nav.tabs button { flex: 1; border: 0; background: none; padding: 11px 2px 10px; font: inherit; font-size: 14px; color: var(--sub); }
   nav.tabs button.on { color: var(--main); font-weight: 700; box-shadow: inset 0 -3px 0 var(--main); }
-  nav.tabs button { position: relative; white-space: nowrap; }
+  nav.tabs button { position: relative; white-space: nowrap; flex: 1 1 auto; }
+  @media (max-width: 420px) { nav.tabs button { font-size: 13px; padding-left: 0; padding-right: 0; } }
+  @media (max-width: 370px) { nav.tabs button { font-size: 12px; } }
   nav.tabs button.chk.pending::after { content: ''; position: absolute; top: 7px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
   .bigmsg { text-align: center; }
   .bigmsg .ico { font-size: 40px; line-height: 1; }
@@ -137,7 +139,7 @@
   @keyframes breathe { 50% { opacity: .35; } }
   @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
   /* ── ホーム画面 ── */
-  .home { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 0 30px; }
+  .home { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 0 30px; box-sizing: border-box; }
   .home .hello { color: var(--sub); font-size: 14px; margin-bottom: 4px; }
   .hbtn { width: 72%; max-width: 420px; border: 0; border-radius: 18px; background: #fff; box-shadow: 0 3px 10px rgba(0,0,0,.08), inset 0 0 0 1px var(--line);
     padding: 16px 18px; font: inherit; text-align: left; color: var(--ink); display: flex; align-items: center; gap: 12px; position: relative; }
@@ -166,6 +168,7 @@
   <div class="hr"><button class="st" id="hdrState"></button><button class="gear" id="gearBtn">⚙ 設定</button></div>
 </header>
 <nav class="tabs" id="tabs" style="display:none">
+  <button data-tab="home">ホーム</button>
   <button data-tab="today">今日</button>
   <button data-tab="tomorrow">明日</button>
   <button data-tab="tasks">タスク（定例・単発）</button>
@@ -181,10 +184,10 @@
 (function () {
   'use strict';
   var STORE = 'yourSecretaryLogin';
-  var SITE_VERSION = '1.1.018';
+  var SITE_VERSION = '1.1.019';
   var TEST_STOP = 169; // テスト送信を止める数（月31日分の毎日のリマインドを残すため 200−31）
   var ADMIN_URL = 'https://script.google.com/macros/s/AKfycbw22sAd3JbIVTmkkY_Jy7cszqnWCHQ6_bYleeF1wt2PXHuvWWZ_zzqPkDXUplcw65k/exec'; // 顧客管理のURL
-  var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: '未完了', quota: null };
+  var S = { conn: null, schema: null, data: null, settings: null, line: null, tab: 'today', taskFilter: 'すべて', quota: null };
   var app = document.getElementById('app');
 
   // ---------- 小物 ----------
@@ -215,7 +218,28 @@
   // お客さん自身のスプレッドシート（予定やタスクの中身）
   function api(action, extra) {
     var p = post_(S.conn.url, Object.assign({ action: action, key: S.conn.pw, accountId: S.conn.id }, extra || {}));
+    if (changesPreview(action, extra)) p = p.then(function (j) { clearPreviews(); return j; });
     return BUSY_ACTIONS[action] ? withBusy(p) : p;
+  }
+  // このサイトで予定・タスク・設定を変えたときだけ、保存してある「今日・明日の予定」を作り直す
+  function changesPreview(action, extra) {
+    if (action === 'save' || action === 'delete' || action === 'saveLine') return true;
+    if (action !== 'saveSettings') return false;
+    return Object.keys((extra && extra.settings) || {}).some(function (k) { return k.indexOf('準備：') !== 0; });
+  }
+  function clearPreviews() {
+    try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('lineHishoPv:') === 0) localStorage.removeItem(k); }); } catch (e) {}
+  }
+  // 1時間は読み直さずに使う（「再読み込み」で読み直す）
+  var HOUR = 60 * 60 * 1000;
+  function hourKey(name) { return 'lineHishoC:' + (S.conn ? S.conn.id : '') + ':' + name; }
+  function hourGet(name) { try { var c = JSON.parse(localStorage.getItem(hourKey(name)) || 'null'); return c && Date.now() - c.t < HOUR ? c.v : null; } catch (e) { return null; } }
+  function hourPut(name, v) { try { localStorage.setItem(hourKey(name), JSON.stringify({ t: Date.now(), v: v })); } catch (e) {} }
+  function hourDrop(name) { try { localStorage.removeItem(hourKey(name)); } catch (e) {} }
+  function quotaHour(force) {
+    var c = force ? null : hourGet('quota');
+    if (c) return Promise.resolve(c);
+    return api('quota').then(function (j) { hourPut('quota', j.quota); return j.quota; });
   }
   // 提供者の顧客管理（利用者IDとパスワードだけ）
   function adminApi(action, extra, cred) {
@@ -499,7 +523,7 @@
   function doSend() {
     openModal('<div class="loading">今月の送信数を確かめています…</div>');
     api('quota').then(function (j) { return j.quota; }).catch(function () { return null; }).then(function (q) {
-      S.quota = q;
+      S.quota = q; if (q) hourPut('quota', q);
       var stop = q && q.used >= TEST_STOP;
       openModal((stop ? '<h3>いまはテスト送信できません</h3>' :
         '<h3>テスト送信をしますか？</h3>' +
@@ -513,7 +537,7 @@
       if (y) y.onclick = function () {
         busy(this, true, '送っています…');
         api('testSend').then(function (j) {
-          S.quota = j.quota; if (j.settings) S.settings = j.settings;
+          S.quota = j.quota; if (j.quota) hourPut('quota', j.quota); if (j.settings) S.settings = j.settings;
           openModal('<div class="bigmsg"><div class="ico">✅</div><h3 style="margin-top:8px">LINEに送りました</h3>' +
             '<p>スマホのLINEで、秘書から届いているか見てください。</p>' +
             '<div class="count">' + esc(quotaText(j.quota)) + '</div></div>' +
@@ -534,12 +558,7 @@
     return '<p class="note">' + (next ? '「翌日の予定を送る」がオンなので、明日の予定で作っています。' : '今日の予定で作っています。') + '</p>' +
       '<div id="' + id + '"><div class="loading">作っています…</div></div>';
   }
-  // 作った内容は、その日のあいだ保存しておく（日付が変わったとき・予定や設定を変えたときだけ作り直す）
-  function stampOf() {
-    var str = JSON.stringify([S.data, S.settings]), h = 5381;
-    for (var i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
-    return String(h);
-  }
+  // 作った内容は、その日のあいだ保存しておく（1日1回。日付が変わったとき・このサイトで予定や設定を変えたとき・「作り直す」を押したときだけ作る）
   function bindPreview(id, day) {
     var next = day === 'tomorrow' || (!day && (S.settings || {})['翌日の予定を送る'] === '○');
     var t = today(), target = next ? nToYmd(ymdN(t) + 1) : t;
@@ -553,13 +572,13 @@
     var make = function () {
       var el = document.getElementById(id); if (el) el.innerHTML = '<div class="loading">作っています…</div>';
       api('preview', day ? { day: day } : {}).then(function (j) {
-        var d = new Date(), c = { date: target, stamp: stampOf(), text: j.text, at: (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) };
+        var d = new Date(), c = { date: target, text: j.text, at: (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) };
         try { localStorage.setItem(key, JSON.stringify(c)); } catch (e) {}
         put(c);
       }).catch(function (e) { var el = document.getElementById(id); if (el) el.innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
     };
     var c = null; try { c = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
-    if (c && c.date === target && c.stamp === stampOf()) put(c); else make();
+    if (c && c.date === target) put(c); else make();
   }
 
   // 今日・明日：その日の予定（LINEに届くのと同じ形で表示）
@@ -575,7 +594,7 @@
   function viewToday() { viewDay('today'); }
   function viewTomorrow() { viewDay('tomorrow'); }
 
-  // 初期確認：はじめにやること・つながりの一覧・送信数・LINE送信確認
+  // 初期確認：はじめにやること・つながりの一覧・送信数
   function viewCheck() {
     var s = S.settings || {}, ok = lineOk(), left = setupLeft();
     var times = '毎日 ' + (s['リマインドの時刻'] || '07:00') + (s['翌日の予定を送る'] === '○' ? '（翌日の予定）' : '（その日の予定）');
@@ -591,17 +610,19 @@
       row('LINE', ok, ok ? '秘書のアカウントとつながっています' : 'まだつながっていません') +
       row('毎日のリマインド', !!flags().timeSet, flags().timeSet ? times : 'まだ決めていません（今は ' + times + '）') +
       '</div>' +
-      '<h2>今月の送信数</h2><div class="card" id="qBox2"><div class="loading" style="padding:8px">確かめています…</div></div>' +
-      (ok ? '<h2>LINE送信確認</h2><p class="note">下の内容を、いまLINEに送ります。<b>無料の月200通のうち、1通を使います。</b>送る前に確認が出ます。</p>' + previewBlock('pv2') +
-        '<div style="margin-top:12px"><button class="btn" id="sendNow">メッセージをLINEに送る</button></div>' : '');
+      '<div class="sethead"><h2 style="margin:0">今月の送信数</h2>' + (ok ? '<button class="btn sec slim" id="qRe">再読み込み</button>' : '') + '</div>' +
+      '<div class="card" id="qBox2"><div class="loading" style="padding:8px">確かめています…</div></div>';
     if (ok) {
-      bindPreview('pv2');
-      document.getElementById('sendNow').onclick = function () { doSend(); };
-      api('quota').then(function (j) {
-        S.quota = j.quota; var b = document.getElementById('qBox2');
-        if (b) b.innerHTML = '<div style="font-size:17px;font-weight:700">' + esc(quotaText(j.quota)) + '</div><p class="note">無料のプランは月200通までです。</p>' +
-          (j.quota && j.quota.used >= TEST_STOP ? '<div class="warnbox">' + esc(stopText(j.quota)) + '</div>' : '');
-      }).catch(function () { var b = document.getElementById('qBox2'); if (b) b.innerHTML = '<p class="note">今月の送信数を確かめられませんでした。</p>'; });
+      var showQ = function (force) {
+        var b = document.getElementById('qBox2'); if (b && force) b.innerHTML = '<div class="loading" style="padding:8px">確かめています…</div>';
+        quotaHour(force).then(function (q) {
+          S.quota = q; var b = document.getElementById('qBox2');
+          if (b) b.innerHTML = '<div style="font-size:17px;font-weight:700">' + esc(quotaText(q)) + '</div><p class="note">無料のプランは月200通までです。数は1時間ごとに確かめます。</p>' +
+            (q && q.used >= TEST_STOP ? '<div class="warnbox">' + esc(stopText(q)) + '</div>' : '');
+        }).catch(function () { var b = document.getElementById('qBox2'); if (b) b.innerHTML = '<p class="note">今月の送信数を確かめられませんでした。</p>'; });
+      };
+      showQ(false);
+      document.getElementById('qRe').onclick = function () { showQ(true); };
     } else {
       document.getElementById('qBox2').innerHTML = '<p class="note">LINEとつなぐと、ここに出ます。</p>';
     }
@@ -624,9 +645,16 @@
     if (!isStandalone() || flags().home) return;
     api('saveSettings', { settings: { '準備：ホーム画面': '○' } }).then(function (j) { S.settings = j.settings; updateHeader(); }).catch(function () {});
   }
+  function inLine() { return /\bLine\//i.test(navigator.userAgent || ''); }
   function openHomeGuide() {
     openModal('<h3>スマホのホーム画面に追加する</h3>' +
       '<p class="note">このサイトをホーム画面に置くと、アプリのように1回タップで開けます。</p>' +
+      '<h2 style="margin-top:10px">まず：LINEやメールから開いたとき</h2>' +
+      '<p style="margin:4px 0">LINE・メール・Messengerなどで届いたURLを押すと、そのアプリの<b>中の画面</b>で開くことがあります。そこでは「ホーム画面に追加」ができません。先に、iPhoneは<b>Safari</b>、Androidは<b>Chrome</b>で開き直してください。</p>' +
+      (inLine() ? '<a class="btn" href="' + location.origin + location.pathname + '?openExternalBrowser=1" style="display:block;text-align:center;text-decoration:none;margin:8px 0">Safari・Chromeで開き直す</a>' +
+        '<p class="note">いまはLINEの中で開いています。上のボタンを押すと、Safari（iPhone）・Chrome（Android）で開き直します。</p>'
+        : '<ul style="padding-left:1.3em;margin:4px 0"><li><b>LINE</b>：LINEの中で開いているときは、ここに「Safari・Chromeで開き直す」ボタンが出ます。押すと開き直せます</li>' +
+          '<li><b>メールなど</b>：画面の上か下にある「Safariで開く」「ブラウザで開く」「Chromeで開く」（方位磁針のマークのこともあります）を押します</li></ul>') +
       '<h2 style="margin-top:10px">iPhoneのとき</h2><ol style="padding-left:1.3em;margin:4px 0">' +
       '<li>このサイトを <b>Safari</b> で開きます</li><li>画面の下（または上）の <b>共有ボタン</b>（四角から上向きの矢印）を押します</li>' +
       '<li><b>「ホーム画面に追加」</b>を押し、右上の<b>「追加」</b>を押します</li></ol>' +
@@ -656,6 +684,13 @@
       b('tasks', '✓', 'タスク（定例・単発）', '残りのやること ' + open + '件') +
       b('check', '⚙', '初期確認', left ? 'はじめにやること あと' + left + 'つ' : 'はじめにやることは全部終わっています', left > 0) +
       '</div>';
+    // ボタンのかたまりを、見えている画面の上下のまん中に置く
+    var hm = app.querySelector('.home'), fit = function () {
+      if (!hm.isConnected) { window.removeEventListener('resize', fit); return; }
+      var top = hm.getBoundingClientRect().top + window.scrollY;
+      hm.style.minHeight = Math.max(0, window.innerHeight - top - 12) + 'px';
+    };
+    fit(); window.addEventListener('resize', fit);
     var btns = [].slice.call(app.querySelectorAll('.hbtn'));
     btns.forEach(function (el) {
       el.onclick = function () {
@@ -957,7 +992,7 @@
       '<input type="text" id="lU" autocomplete="off" placeholder="' + (S.line.userId ? '変えるときだけ入れる' : 'ここに貼る') + '">' +
       '<div style="margin-top:14px"><button class="btn" id="lSave">LINEの情報を保存</button></div></div>' +
 
-      '<h2 id="secCal">Googleカレンダーの連携</h2><div class="card"><p class="note">選んだカレンダーの予定も、毎日のリマインドに入ります（TimeRexなどで入った予定も、Googleカレンダーに入っていれば届きます）。</p>' +
+      '<div class="sethead"><h2 id="secCal" style="margin:0">Googleカレンダーの連携</h2><button class="btn sec slim" id="calRe">再読み込み</button></div><div class="card"><p class="note">選んだカレンダーの予定も、毎日のリマインドに入ります（TimeRexなどで入った予定も、Googleカレンダーに入っていれば届きます）。</p>' +
       '<div id="calBox"><div class="loading" style="padding:8px">カレンダーの一覧を読み込んでいます…</div></div></div>' +
 
       '<h2>今月の送信数</h2><div class="card" id="qBox"><button class="btn sec" id="qLoad">LINEに問い合わせる</button></div>' +
@@ -1026,10 +1061,10 @@
     }
     document.getElementById('qLoad').onclick = function () {
       var btn = this; busy(btn, true, '問い合わせています…');
-      api('quota').then(function (j) { S.quota = j.quota; showQuota(j.quota); }).catch(function (e) { busy(btn, false); toast(e.message, true); });
+      api('quota').then(function (j) { S.quota = j.quota; hourPut('quota', j.quota); showQuota(j.quota); }).catch(function (e) { busy(btn, false); toast(e.message, true); });
     };
-    if (S.quota) showQuota(S.quota);
-    loadCalendars();
+    var qh = hourGet('quota') || S.quota; if (qh) showQuota(qh);
+    loadCalendars(false);
     document.getElementById('logout').onclick = function () {
       var btn = this;
       if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; btn.textContent = 'もう一度押すとログアウトします'; return; }
@@ -1038,11 +1073,17 @@
   }
 
   // Googleカレンダーの一覧（チェックしたものを毎日のリマインドに入れる）
-  function loadCalendars() {
+  // 一覧は1時間は読み直さない（「再読み込み」で読み直す）。どれを選んでいるかは設定から出す
+  function loadCalendars(force) {
     var box = document.getElementById('calBox'); if (!box) return;
-    api('calendars').then(function (j) {
+    var re = document.getElementById('calRe'); if (re) re.onclick = function () { box.innerHTML = '<div class="loading" style="padding:8px">カレンダーの一覧を読み込んでいます…</div>'; loadCalendars(true); };
+    var c = force ? null : hourGet('calendars');
+    (c ? Promise.resolve({ calendars: c }) : api('calendars').then(function (j) {
+      hourPut('calendars', (j.calendars || []).map(function (x) { return { id: x.id, name: x.name }; })); return j;
+    })).then(function (j) {
       var box = document.getElementById('calBox'); if (!box) return;
-      var cals = j.calendars || [];
+      var sel = []; try { sel = JSON.parse((S.settings || {})['カレンダー'] || '[]'); } catch (e) {}
+      var cals = (j.calendars || []).map(function (x) { return { id: x.id, name: x.name, selected: sel.indexOf(x.id) >= 0 }; });
       if (!cals.length) { box.innerHTML = '<p class="note">読めるカレンダーがありませんでした。</p>'; return; }
       box.innerHTML = cals.map(function (c, i) {
         return '<label class="calrow"><input type="checkbox" data-id="' + esc(c.id) + '"' + (c.selected ? ' checked' : '') + '><span>' + esc(c.name) + '</span></label>';
